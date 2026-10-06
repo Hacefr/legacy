@@ -142,7 +142,6 @@ class DynamicAtlasCharacter {
             }
         }
 
-        // Automatic: Any character possessing Master Timeline Labels gets full Timeline Mode!
         this.isTimelineDriven = Object.keys(this.timelineAnims).length > 0;
 
         this.currentAnim = this.isGF ? 'danceright' : 'idle';
@@ -164,13 +163,11 @@ class DynamicAtlasCharacter {
 
         if (this.isLockedAnim && !forced) return;
 
-        // Normalize raw directional calls to FNF standard
         if (clean === 'left') clean = 'singleft';
         if (clean === 'down') clean = 'singdown';
         if (clean === 'up') clean = 'singup';
         if (clean === 'right') clean = 'singright';
 
-        // Pink Threat Alt Suffix Redirect (pinkthreat.hxc)
         if (this.charName.includes('pinkthreat') && this.idleSuffix === '-bruh') {
             if (clean.includes('left')) clean = 'lbruh';
             if (clean.includes('down')) clean = 'dbruh';
@@ -178,7 +175,6 @@ class DynamicAtlasCharacter {
             if (clean.includes('right')) clean = 'rbruh';
         }
 
-        // 1. Lookup the official prefix from character JSON
         let targetPrefix = null;
         let animConfig = null;
         if (this.charConfig && this.charConfig.animations) {
@@ -193,7 +189,7 @@ class DynamicAtlasCharacter {
 
         const candidates = [targetPrefix, clean, animName].filter(Boolean);
 
-        // 2. Timeline Mode: Matching bug fixed (kc === tClean || kc.startsWith(tClean) || tClean.startsWith(kc))
+        // Timeline Mode
         if (this.isTimelineDriven) {
             let matchedTimelineKey = null;
             for (const term of candidates) {
@@ -229,7 +225,7 @@ class DynamicAtlasCharacter {
             }
         }
 
-        // 3. Symbol Mode (Maroon Threat, BF, GF)
+        // Symbol Mode
         let matchedSymKey = null;
         for (const term of candidates) {
             const tClean = term.replace(/[^a-z0-9]/g, '');
@@ -257,7 +253,6 @@ class DynamicAtlasCharacter {
         this.displayContainer.removeChildren();
         const self = this;
 
-        // Assembly order: Parent Matrix -> Local Matrix (prevents scrambled parts)
         function renderSymbolInstance(symName, frameNum, parentMat, target) {
             const sym = self.symbols[symName];
             if (!sym || !sym.TL || !sym.TL.L) return;
@@ -319,17 +314,19 @@ class DynamicAtlasCharacter {
                     const baseMat = new PIXI.Matrix();
 
                     if (this.charName === 'noob49') {
-                        baseMat.translate(280, -700);  // Shifted beside Mini Grey on the desk
+                        baseMat.translate(280, -700);
+                    } else if (this.charName.includes('deadnoob49')) {
+                        baseMat.translate(186, 477); // Applies official [-186, -477] drop to place Dead Noob on floor
                     } else if (this.charName.includes('detective')) {
-                        baseMat.translate(0, -380);   // Stands on tile floor
+                        baseMat.translate(0, -380);
                     } else if (this.charName.includes('horse')) {
-                        baseMat.translate(-150, -420); // Stands beside speakers on dirt ledge
+                        baseMat.translate(-150, -420);
                     } else if (this.charName.includes('purple')) {
-                        baseMat.translate(-200, -410); // Floor tile alignment
+                        baseMat.translate(-200, -410);
                     } else if (this.charName.includes('greythreat')) {
-                        baseMat.translate(0, -220);    // Sand alignment
+                        baseMat.translate(0, -220);
                     } else if (this.charName.includes('pinkthreat')) {
-                        baseMat.translate(0, -260);    // Sand alignment
+                        baseMat.translate(0, -260);
                     }
 
                     baseMat.translate(this.globalOffset[0] || 0, this.globalOffset[1] || 0);
@@ -397,7 +394,7 @@ class DynamicAtlasCharacter {
             if (this.mode === 'timeline' && this.activeAnimData) {
                 if (this.frame >= this.activeAnimData.duration) {
                     if (this.isLockedAnim) {
-                        this.frame = this.activeAnimData.duration - 1; // Stay on last frame (e.g. dead Noob49)
+                        this.frame = this.activeAnimData.duration - 1;
                     } else {
                         this.frame = (this.currentAnim.includes('idle') || this.currentAnim.includes('dance')) ? 0 : this.activeAnimData.duration - 1;
                     }
