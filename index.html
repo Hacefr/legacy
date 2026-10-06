@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>Vs. Impostor - Legacy DLC Port</title>
+    
+    <!-- Pixi.js v7.3.2 WebGL Runtime -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.3.2/pixi.min.js"></script>
+    
+    <!-- JSZip v3.10.1 In-Memory Decompressor -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Drag & Drop Archive Ingestion Layer -->
+    <div id="drop-overlay">
+        <div class="drop-card">
+            <h1>VS. IMPOSTOR: LEGACY DLC</h1>
+            <p class="subtitle">Drop your <code>securitydlc_c4037.zip</code> or mod archive below</p>
+            
+            <div id="staged-files-list">
+                <p class="no-files-text">No files loaded. Drag and drop your mod archive here!</p>
+            </div>
+            
+            <div id="status-box" class="hidden">Waiting for mod archive...</div>
+            
+            <button id="start-engine-btn" class="glow-btn hidden">
+                LOAD MODS & START (0 Ready)
+            </button>
+        </div>
+    </div>
+
+    <!-- Freeplay Song Selector Screen -->
+    <div id="freeplay-screen" class="hidden">
+        <header>
+            <div class="title-group">
+                <h2>FREEPLAY</h2>
+                <span class="version-tag">STAGE 1 EDITOR BUILD</span>
+            </div>
+            <div class="header-actions">
+                <span id="mod-counter">0 Songs Ready</span>
+            </div>
+        </header>
+        <div id="song-grid"></div>
+    </div>
+
+    <!-- Active WebGL PlayState Container -->
+    <div id="game-container" class="hidden">
+        <video id="video-cutscene" playsinline></video>
+
+        <!-- Stage 1: Key 7 Visual Offset & Alignment Editor Overlay -->
+        <div id="editor-ui" class="hidden">
+            <!-- Sidebar: Scene Layer Tree -->
+            <div id="editor-sidebar">
+                <div class="sidebar-header">
+                    <h3>SCENE INSPECTOR</h3>
+                    <span class="help-hint">Press 7 to Exit</span>
+                </div>
+                <div id="scene-tree"></div>
+            </div>
+
+            <!-- Top Toolbar Controls -->
+            <div id="editor-toolbar">
+                <div class="tool-group">
+                    <button id="btn-undo" title="Undo (Ctrl+Z)">↩ Undo</button>
+                    <button id="btn-redo" title="Redo (Ctrl+Shift+Z)">↪ Redo</button>
+                    <button id="btn-toggle-grid" class="active"># Grid</button>
+                    <button id="btn-toggle-baseline" class="active">━ Floor Line</button>
+                </div>
+
+                <!-- Live Coordinate Readout -->
+                <div id="editor-coord-display">
+                    Selected: <strong id="lbl-selected-name">None</strong> | 
+                    X: <span id="lbl-coord-x">0</span>px | 
+                    Y: <span id="lbl-coord-y">0</span>px
+                </div>
+
+                <div class="tool-group">
+                    <button id="btn-copy-config" class="btn-highlight">📋 Copy JSON Config</button>
+                    <button id="btn-close-editor" class="btn-danger">✕ Close [7]</button>
+                </div>
+            </div>
+            
+            <div id="copy-toast" class="hidden">✔ Coordinates copied to clipboard!</div>
+        </div>
+    </div>
+
+    <!-- Engine Scripts -->
+    <script src="core.js"></script>
+    <script src="characters.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
