@@ -57,7 +57,10 @@
             <div id="editor-sidebar">
                 <div class="sidebar-header">
                     <h3>SCENE INSPECTOR</h3>
-                    <span class="help-hint">Press 7 to Exit</span>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span class="help-hint">Press 7 to Exit</span>
+                        <button id="btn-collapse-sidebar" title="Collapse Sidebar (H)">«</button>
+                    </div>
                 </div>
                 <div id="scene-tree"></div>
             </div>
@@ -65,17 +68,20 @@
             <!-- Top Toolbar Controls -->
             <div id="editor-toolbar">
                 <div class="tool-group">
+                    <button id="btn-toggle-sidebar" class="active" title="Toggle Sidebar (H)">📁 Tree</button>
                     <button id="btn-undo" title="Undo (Ctrl+Z)">↩ Undo</button>
                     <button id="btn-redo" title="Redo (Ctrl+Shift+Z)">↪ Redo</button>
                     <button id="btn-toggle-grid" class="active"># Grid</button>
                     <button id="btn-toggle-baseline" class="active">━ Floor Line</button>
                 </div>
 
-                <!-- Live Coordinate Readout -->
+                <!-- Live Coordinate & Layer Readout -->
                 <div id="editor-coord-display">
                     Selected: <strong id="lbl-selected-name">None</strong> | 
                     X: <span id="lbl-coord-x">0</span>px | 
-                    Y: <span id="lbl-coord-y">0</span>px
+                    Y: <span id="lbl-coord-y">0</span>px |
+                    Layer: <span id="lbl-coord-z" style="color:#00d2d3;">0</span> 
+                    <small style="color:#747d8c; font-size:0.75rem;">[` / \ to reorder]</small>
                 </div>
 
                 <div class="tool-group">
