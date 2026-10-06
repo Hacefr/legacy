@@ -31,7 +31,6 @@ class StageEditor {
         this.sidebarVisible = true;
         this.baselineY = 720;
 
-        // UI references
         this.ui = document.getElementById('editor-ui');
         this.sidebar = document.getElementById('editor-sidebar');
         this.tree = document.getElementById('scene-tree');
@@ -50,14 +49,11 @@ class StageEditor {
         this.btnCopy = document.getElementById('btn-copy-config');
         this.btnClose = document.getElementById('btn-close-editor');
 
-        // Top graphics layer for editor overlays
         this.editorGraphics = new PIXI.Graphics();
         this.editorGraphics.zIndex = 99999;
         this.scene.worldContainer.addChild(this.editorGraphics);
 
-        // Enable sorting on main stage container
         this.scene.worldContainer.sortableChildren = true;
-
         this.bindEvents();
     }
 
@@ -79,7 +75,6 @@ class StageEditor {
         this.btnCopy.onclick = () => this.copyConfiguration();
         this.btnClose.onclick = () => this.toggle(false);
 
-        // Canvas dragging support
         let isDragging = false;
         let dragStart = { x: 0, y: 0 };
         let objStart = { x: 0, y: 0 };
@@ -160,7 +155,6 @@ class StageEditor {
             if (p) items.push({ key: `prop_${k}`, name: `Prop: ${k}`, obj: p });
         }
 
-        // Sort items by current zIndex so the tree reflects exact layer order
         items.sort((a, b) => (b.obj.zIndex || 0) - (a.obj.zIndex || 0));
 
         items.forEach(it => {
@@ -224,19 +218,12 @@ class StageEditor {
         const newZ = prevZ + delta;
         this.selectedObject.zIndex = newZ;
 
-        // Sort all stage elements cleanly within worldContainer
         this.scene.worldContainer.sortChildren();
-
         this.updateReadout();
         this.populateTree();
         this.renderGuides();
 
-        this.history.push({
-            type: 'layer',
-            key: this.selectedKey,
-            from: prevZ,
-            to: newZ
-        });
+        this.history.push({ type: 'layer', key: this.selectedKey, from: prevZ, to: newZ });
         this.redoStack = [];
     }
 
@@ -258,7 +245,6 @@ class StageEditor {
                 obj.position.set(action.from.x, action.from.y);
             }
             this.updateReadout();
-            this.populateTree();
             this.renderGuides();
             this.redoStack.push(action);
         }
@@ -276,7 +262,6 @@ class StageEditor {
                 obj.position.set(action.to.x, action.to.y);
             }
             this.updateReadout();
-            this.populateTree();
             this.renderGuides();
             this.history.push(action);
         }
@@ -295,7 +280,6 @@ class StageEditor {
         this.editorGraphics.clear();
         if (!this.active) return;
 
-        // 1. Grid Lines
         if (this.showGrid) {
             this.editorGraphics.lineStyle(1, 0x30363d, 0.4);
             for (let x = -2000; x <= 3000; x += 100) {
@@ -308,14 +292,12 @@ class StageEditor {
             }
         }
 
-        // 2. Floor Baseline
         if (this.showBaseline) {
             this.editorGraphics.lineStyle(3, 0x2ed573, 0.9);
             this.editorGraphics.moveTo(-2000, this.baselineY);
             this.editorGraphics.lineTo(3000, this.baselineY);
         }
 
-        // 3. Selection Bounding Box
         if (this.selectedObject && this.selectedObject.visible) {
             const b = this.selectedObject.getBounds();
             const localTopLeft = this.scene.worldContainer.toLocal(new PIXI.Point(b.x, b.y));
@@ -374,7 +356,7 @@ class PlayStateScene {
         this.speed = songItem.speed || 2.5;
 
         this.worldContainer = new PIXI.Container();
-        this.worldContainer.sortableChildren = true; // Enables flat layer hierarchy
+        this.worldContainer.sortableChildren = true;
         this.hudContainer = new PIXI.Container();
 
         this.dad = dadChar;
@@ -395,6 +377,7 @@ class PlayStateScene {
         this.gfDanceLeft = false;
         this.props = {};
         this.mistLayers = [];
+        this.beachBoppers = [];
 
         this.hesDying = false;
         this.isDark = false;
@@ -412,7 +395,6 @@ class PlayStateScene {
         app.stage.addChild(this.worldContainer);
         app.stage.addChild(this.hudContainer);
 
-        // Stage 1 Key 7 Editor
         this.editor = new StageEditor(this);
     }
 
@@ -451,9 +433,8 @@ class PlayStateScene {
         this.camFocusY = this.camTargetY;
     }
 
-    // Unified Stage & Character setup: Everything lives directly in worldContainer
     setupStageAndCharacters(stageData, stageProps, stageJson) {
-        // 1. Stage Props
+        // 1. Base Stage Props from JSON
         if (stageJson && stageJson.props) {
             stageJson.props.forEach(p => {
                 const cleanName = p.assetPath.split('/').pop().toLowerCase();
@@ -525,7 +506,7 @@ class PlayStateScene {
                 }
             });
 
-            // Mist Background
+            // Mist Layers for Security 2
             if (stageData['mistback'] && stageData['mistmid']) {
                 const mb = new PIXI.TilingSprite(stageData['mistback'], 4000, 720);
                 mb.position.set(-1000, -270);
@@ -545,7 +526,64 @@ class PlayStateScene {
             }
         }
 
-        // 2. Characters (Directly in worldContainer with official zIndex levels)
+        // 2. Build Beach Stage Boppers & Scripted Crewmates (from beach.hxc)
+        const currentSong = this.songItem.id.toLowerCase();
+        if (currentSong.includes('threat')) {
+            const addBopperSprite = (key, textures, x, y, z, loop = false) => {
+                if (!textures || textures.length === 0) return null;
+                const spr = new PIXI.AnimatedSprite(textures);
+                spr.position.set(x, y);
+                spr.zIndex = z;
+                spr.loop = loop;
+                spr.animationSpeed = 24 / 60;
+                spr.play();
+                this.props[key] = spr;
+                this.worldContainer.addChild(spr);
+                this.beachBoppers.push(spr);
+                return spr;
+            };
+
+            // Tomatungus & White (ejected)
+            if (stageData['tomatungusswim']) {
+                const tom = new PIXI.Sprite(stageData['tomatungusswim']);
+                tom.position.set(2300, 450);
+                tom.zIndex = 4;
+                this.props['tomatungus'] = tom;
+                this.worldContainer.addChild(tom);
+            }
+            if (stageData['whiteejected']) {
+                const white = new PIXI.Sprite(stageData['whiteejected']);
+                white.position.set(-700, 420);
+                white.zIndex = 4;
+                this.props['white'] = white;
+                this.worldContainer.addChild(white);
+            }
+
+            // Boppers from boppers2.xml
+            if (stageProps['boppers2']) {
+                const bp2 = stageProps['boppers2'];
+                addBopperSprite('noisemaker', bp2['noisemakerbop1'] || Object.values(bp2)[0], 1350, 440, 5);
+                addBopperSprite('alien', bp2['alienbop1'] || Object.values(bp2)[0], 2030, 470, 7);
+                addBopperSprite('egor', bp2['egorbop'] || Object.values(bp2)[0], -400, 500, 6);
+            }
+
+            // Boppers from boppers1.xml
+            if (stageProps['boppers1']) {
+                const bp1 = stageProps['boppers1'];
+                addBopperSprite('longus', bp1['longusbop1'] || Object.values(bp1)[0], -300, 300, 5);
+                addBopperSprite('buckenberry', bp1['buckenbop1'] || Object.values(bp1)[0], 1970, 430, 6);
+                addBopperSprite('rhm', bp1['rhmbop'] || Object.values(bp1)[0], 2300, 450, 7);
+            }
+
+            // Chef from chef.xml (hidden until step 1500)
+            if (stageProps['chef']) {
+                const chf = stageProps['chef'];
+                const chefSpr = addBopperSprite('chef', chf['chefbop'] || Object.values(chf)[0], 1970, 460, 8);
+                if (chefSpr) chefSpr.alpha = 0.001;
+            }
+        }
+
+        // 3. Characters Placement
         const c = (stageJson && stageJson.characters) ? stageJson.characters : null;
 
         let dadPos = [100, 100];
@@ -599,7 +637,6 @@ class PlayStateScene {
             this.worldContainer.addChild(this.extraChars.maroonParasite.container);
         }
 
-        // Initial clean sort of all world layers
         this.worldContainer.sortChildren();
     }
 
@@ -797,6 +834,14 @@ class PlayStateScene {
             m.sprite.tilePosition.x += m.speed * deltaSec;
         });
 
+        // Scripted Triple Threat Tomatungus & White movement
+        if (this.props['tomatungus'] && songPos >= 2000 && this.props['tomatungus'].x > -1000) {
+            this.props['tomatungus'].x -= 30 * deltaSec;
+        }
+        if (this.props['white'] && songPos >= 70000 && this.props['white'].x < 2500) {
+            this.props['white'].x += 40 * deltaSec;
+        }
+
         for (let i = 0; i < this.events.length; i++) {
             const e = this.events[i];
             if (!e.fired && songPos >= e.time) {
@@ -836,7 +881,8 @@ class PlayStateScene {
                     this.updateHealthBar();
                 }
 
-                const anims = ['left', 'down', 'up', 'right'];
+                // Call normalized 'singleft', 'singdown', etc. to guarantee real JSON offsets are used!
+                const anims = ['singleft', 'singdown', 'singup', 'singright'];
                 const animToPlay = anims[n.dir];
 
                 if (n.kind === 'maroon' && this.extraChars.maroon && this.extraChars.maroon.container.visible) {
@@ -906,7 +952,7 @@ class PlayStateScene {
         const songPos = Conductor.songPosition;
         this.hitReceptor(dir, true);
         
-        const anims = ['left', 'down', 'up', 'right'];
+        const anims = ['singleft', 'singdown', 'singup', 'singright'];
         if (this.bf) this.bf.playAnim(anims[dir], true);
 
         if (this.hesDying && this.health > 0.2) {
@@ -1072,7 +1118,10 @@ function onStepHit(step) {
     // 5. "Triple Threat"
     if (currentSong.includes('threat')) {
         if (step === 240) {
-            if (playState.extraChars.maroon) playState.extraChars.maroon.container.visible = true;
+            if (playState.extraChars.maroon) {
+                playState.extraChars.maroon.container.visible = true;
+                playState.extraChars.maroon.playAnim('wow', true);
+            }
             if (playState.dad) playState.dad.playAnim('wow', true);
             playState.dadCam = [750, 600];
         }
@@ -1092,7 +1141,14 @@ function onStepHit(step) {
         if (step === 1320) {
             if (playState.extraChars.maroon) playState.extraChars.maroon.container.visible = false;
             if (playState.extraChars.maroonParasite) playState.extraChars.maroonParasite.container.visible = true;
+            if (playState.props['egor']) playState.props['egor'].visible = false;
             playState.dadCam = [700, 600];
+        }
+        if (step === 1500) {
+            if (playState.props['chef']) playState.props['chef'].alpha = 1;
+        }
+        if (step === 1600) {
+            if (playState.props['chef']) playState.props['chef'].visible = false;
         }
         if (step === 1848) {
             if (playState.dad) playState.dad.playAnim('bruh', true);
@@ -1106,6 +1162,15 @@ function onStepHit(step) {
 function onBeatHit(beat) {
     if (!playState) return;
     const currentSong = playState.songItem.id.toLowerCase();
+
+    // Beach Stage Boppers dance on the beat!
+    if (currentSong.includes('threat') && beat % 2 === 0) {
+        playState.beachBoppers.forEach(b => {
+            if (b && b.visible && typeof b.gotoAndPlay === 'function') {
+                b.gotoAndPlay(0);
+            }
+        });
+    }
 
     if (currentSong.includes('49')) {
         if (beat % 2 === 0 && playState.props['shit'] && typeof playState.props['shit'].gotoAndPlay === 'function') {
@@ -1161,33 +1226,28 @@ const KEY_MAP = {
 };
 
 window.addEventListener('keydown', (e) => {
-    // Key 7: Toggle Stage 1 Visual Offset Editor
     if (e.key === '7' && playState) {
         playState.editor.toggle();
         return;
     }
 
-    // Editor Shortcuts
     if (playState && playState.editor && playState.editor.active) {
         if (e.key === 'Escape') {
             playState.editor.toggle(false);
             return;
         }
 
-        // H key: Toggle Sidebar
         if (e.key.toLowerCase() === 'h') {
             playState.editor.toggleSidebar();
             return;
         }
 
-        // ` (Backtick): Layer Forward (+1)
         if (e.code === 'Backquote' || e.key === '`') {
             playState.editor.changeLayer(1);
             e.preventDefault();
             return;
         }
 
-        // \ (Backslash): Layer Backward (-1)
         if (e.code === 'Backslash' || e.key === '\\') {
             playState.editor.changeLayer(-1);
             e.preventDefault();
