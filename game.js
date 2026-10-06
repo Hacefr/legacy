@@ -16,6 +16,91 @@ let playState = null;
 let activeCountdownTimer = null;
 
 // ==========================================================================
+// User Calibrated Stage Configurations
+// ==========================================================================
+const STAGE_CALIBRATIONS = {
+    "security": {
+        characters: {
+            bf: { position: [1291, 895], zIndex: 300 },
+            dad: { position: [632, 1198], zIndex: 200 },
+            gf: { position: [1067, 746], zIndex: 100 }
+        },
+        props: {
+            bg: { position: [-550, -270], zIndex: 0 },
+            wall: { position: [-550, -270], zIndex: 0 },
+            cabinets: { position: [-552, -140], zIndex: 1 },
+            shit: { position: [350, 480], zIndex: 2 },
+            tawny: { position: [-130, 330], zIndex: 3 },
+            deadtawny: { position: [-130, 400], zIndex: 4 },
+            props: { position: [180, 20], zIndex: 5 },
+            table: { position: [35, 210], zIndex: 6 },
+            substract: { position: [-550, -270], zIndex: 8 },
+            graypet: { position: [-80, 750], zIndex: 250 },
+            minigrey: { position: [-80, 750], zIndex: 250 },
+            vignette: { position: [-550, -270], zIndex: 350 },
+            light: { position: [-250, -270], zIndex: 351 }
+        }
+    },
+    "security2": {
+        characters: {
+            bf: { position: [1046, 941], zIndex: 300 },
+            dad: { position: [275, 868], zIndex: 200 },
+            gf: { position: [604, 424], zIndex: 100 }
+        },
+        props: {
+            bg: { position: [-550, -270], zIndex: 0 },
+            wall: { position: [-550, -270], zIndex: 0 },
+            cabinets: { position: [-552, -140], zIndex: 1 },
+            deadtawny: { position: [-130, 400], zIndex: 4 },
+            props: { position: [180, 20], zIndex: 5 },
+            table: { position: [35, 210], zIndex: 6 },
+            substract: { position: [-550, -230], zIndex: 8 },
+            player: { position: [-900, 400], zIndex: 350 },
+            vignette: { position: [-550, -250], zIndex: 351 },
+            loblack: { position: [0, 0], zIndex: 352 },
+            discuss: { position: [407, 140], zIndex: 353 }
+        }
+    },
+    "horse": {
+        characters: {
+            bf: { position: [1268, 946], zIndex: 300 },
+            dad: { position: [72, 949], zIndex: 200 },
+            gf: { position: [960, 777], zIndex: 100 }
+        },
+        props: {
+            "1": { position: [-917, -203], zIndex: 2 },
+            "2": { position: [130, 415], zIndex: 3 },
+            "3": { position: [-600, 260], zIndex: 4 },
+            sky: { position: [-600, -235], zIndex: 0 },
+            light: { position: [-932, -940], zIndex: 1 },
+            one: { position: [-917, -203], zIndex: 2 },
+            two: { position: [130, 415], zIndex: 3 },
+            three: { position: [-600, 260], zIndex: 4 },
+            ground: { position: [-550, 737], zIndex: 5 },
+            horse1: { position: [-2000, 380], zIndex: 6 },
+            horses: { position: [-3480, 380], zIndex: 9 },
+            horse2: { position: [-3500, 380], zIndex: 7 },
+            horse3: { position: [-3400, 380], zIndex: 8 },
+            horse4: { position: [-3480, 380], zIndex: 9 },
+            caught: { position: [1400, 470], zIndex: 10 },
+            caughthorse: { position: [1400, 470], zIndex: 10 },
+            front: { position: [-866, 640], zIndex: 350 },
+            subtract: { position: [-595, -222], zIndex: 351 },
+            overlay: { position: [-590, -237], zIndex: 352 },
+            overlah: { position: [-590, -237], zIndex: 352 }
+        }
+    },
+    "medbay": {
+        characters: {
+            bf: { position: [1180, 875], zIndex: 300 },
+            dad: { position: [351.5, 928], zIndex: 200 },
+            gf: { position: [1320, 741], zIndex: 100 }
+        },
+        props: {}
+    }
+};
+
+// ==========================================================================
 // Stage 1 In-Game Visual Offset & Alignment Editor (Key 7)
 // ==========================================================================
 class StageEditor {
@@ -31,6 +116,7 @@ class StageEditor {
         this.sidebarVisible = true;
         this.baselineY = 720;
 
+        // UI references
         this.ui = document.getElementById('editor-ui');
         this.sidebar = document.getElementById('editor-sidebar');
         this.tree = document.getElementById('scene-tree');
@@ -42,6 +128,7 @@ class StageEditor {
 
         this.btnToggleSidebar = document.getElementById('btn-toggle-sidebar');
         this.btnCollapseSidebar = document.getElementById('btn-collapse-sidebar');
+        this.btnFlip = document.getElementById('btn-flip');
         this.btnUndo = document.getElementById('btn-undo');
         this.btnRedo = document.getElementById('btn-redo');
         this.btnGrid = document.getElementById('btn-toggle-grid');
@@ -60,6 +147,7 @@ class StageEditor {
     bindEvents() {
         if (this.btnToggleSidebar) this.btnToggleSidebar.onclick = () => this.toggleSidebar();
         if (this.btnCollapseSidebar) this.btnCollapseSidebar.onclick = () => this.toggleSidebar();
+        if (this.btnFlip) this.btnFlip.onclick = () => this.flipSelected();
         this.btnUndo.onclick = () => this.undo();
         this.btnRedo.onclick = () => this.redo();
         this.btnGrid.onclick = () => {
@@ -117,10 +205,26 @@ class StageEditor {
         });
     }
 
+    flipSelected() {
+        if (!this.active || !this.selectedObject) return;
+        const prevScaleX = this.selectedObject.scale.x;
+        const newScaleX = -prevScaleX;
+        this.selectedObject.scale.x = newScaleX;
+
+        this.renderGuides();
+        this.history.push({
+            type: 'flip',
+            key: this.selectedKey,
+            from: prevScaleX,
+            to: newScaleX
+        });
+        this.redoStack = [];
+    }
+
     toggleSidebar(forceState = null) {
         this.sidebarVisible = (forceState !== null) ? forceState : !this.sidebarVisible;
         this.sidebar.classList.toggle('collapsed', !this.sidebarVisible);
-        this.btnToggleSidebar.classList.toggle('active', this.sidebarVisible);
+        if (this.btnToggleSidebar) this.btnToggleSidebar.classList.toggle('active', this.sidebarVisible);
     }
 
     toggle(forceState = null) {
@@ -244,6 +348,8 @@ class StageEditor {
             if (action.type === 'layer') {
                 obj.zIndex = action.from;
                 this.scene.worldContainer.sortChildren();
+            } else if (action.type === 'flip') {
+                obj.scale.x = action.from;
             } else {
                 obj.position.set(action.from.x, action.from.y);
             }
@@ -261,6 +367,8 @@ class StageEditor {
             if (action.type === 'layer') {
                 obj.zIndex = action.to;
                 this.scene.worldContainer.sortChildren();
+            } else if (action.type === 'flip') {
+                obj.scale.x = action.to;
             } else {
                 obj.position.set(action.to.x, action.to.y);
             }
@@ -321,15 +429,18 @@ class StageEditor {
             characters: {
                 bf: {
                     position: this.scene.bf ? [Math.round(this.scene.bf.container.x), Math.round(this.scene.bf.container.y)] : [0, 0],
-                    zIndex: this.scene.bf ? (this.scene.bf.container.zIndex || 300) : 300
+                    zIndex: this.scene.bf ? (this.scene.bf.container.zIndex || 300) : 300,
+                    flipX: this.scene.bf ? (this.scene.bf.container.scale.x < 0) : false
                 },
                 dad: {
                     position: this.scene.dad ? [Math.round(this.scene.dad.container.x), Math.round(this.scene.dad.container.y)] : [0, 0],
-                    zIndex: this.scene.dad ? (this.scene.dad.container.zIndex || 200) : 200
+                    zIndex: this.scene.dad ? (this.scene.dad.container.zIndex || 200) : 200,
+                    flipX: this.scene.dad ? (this.scene.dad.container.scale.x < 0) : false
                 },
                 gf: {
                     position: this.scene.gf ? [Math.round(this.scene.gf.container.x), Math.round(this.scene.gf.container.y)] : [0, 0],
-                    zIndex: this.scene.gf ? (this.scene.gf.container.zIndex || 100) : 100
+                    zIndex: this.scene.gf ? (this.scene.gf.container.zIndex || 100) : 100,
+                    flipX: this.scene.gf ? (this.scene.gf.container.scale.x < 0) : false
                 }
             },
             props: {}
@@ -401,7 +512,7 @@ class PlayStateScene {
         this.editor = new StageEditor(this);
     }
 
-    // Static Camera: Zero sway so editing positions match gameplay 100%
+    // Static Camera: Matches editor positioning 1:1
     initStageCameras(songId) {
         if (songId.includes('49') || songId.includes('suspect')) {
             this.camTargetX = 675;
@@ -428,6 +539,9 @@ class PlayStateScene {
     }
 
     setupStageAndCharacters(stageData, stageProps, stageJson) {
+        const stageName = this.songItem.stage || 'security';
+        const calib = STAGE_CALIBRATIONS[stageName] || null;
+
         // 1. Stage Props Setup
         if (stageJson && stageJson.props) {
             stageJson.props.forEach(p => {
@@ -436,6 +550,10 @@ class PlayStateScene {
 
                 let propPos = p.position;
                 let propZ = p.zIndex !== undefined ? p.zIndex : 0;
+                if (calib && calib.props && calib.props[cleanName]) {
+                    propPos = calib.props[cleanName].position;
+                    propZ = calib.props[cleanName].zIndex;
+                }
 
                 if (p.assetPath && p.assetPath.startsWith('#')) {
                     const g = new PIXI.Graphics();
@@ -604,9 +722,28 @@ class PlayStateScene {
             if (c.gf && Array.isArray(c.gf.position)) { gfPos = c.gf.position; gfZ = c.gf.zIndex || 100; }
         }
 
+        if (calib && calib.characters) {
+            if (calib.characters.dad) { 
+                dadPos = calib.characters.dad.position; 
+                dadZ = calib.characters.dad.zIndex; 
+            }
+            if (calib.characters.bf) { 
+                bfPos = calib.characters.bf.position; 
+                bfZ = calib.characters.bf.zIndex; 
+            }
+            if (calib.characters.gf) { 
+                gfPos = calib.characters.gf.position; 
+                gfZ = calib.characters.gf.zIndex; 
+            }
+        }
+
         if (this.gf) {
             this.gf.container.position.set(gfPos[0], gfPos[1]);
             this.gf.container.zIndex = gfZ;
+            if (calib && calib.characters && calib.characters.gf && calib.characters.gf.flipX !== undefined) {
+                const s = Math.abs(this.gf.container.scale.x);
+                this.gf.container.scale.x = calib.characters.gf.flipX ? -s : s;
+            }
             this.gf.container.visible = !!(c && c.gf);
             this.worldContainer.addChild(this.gf.container);
         }
@@ -614,12 +751,20 @@ class PlayStateScene {
         if (this.dad) {
             this.dad.container.position.set(dadPos[0], dadPos[1]);
             this.dad.container.zIndex = dadZ;
+            if (calib && calib.characters && calib.characters.dad && calib.characters.dad.flipX !== undefined) {
+                const s = Math.abs(this.dad.container.scale.x);
+                this.dad.container.scale.x = calib.characters.dad.flipX ? -s : s;
+            }
             this.worldContainer.addChild(this.dad.container);
         }
 
         if (this.bf) {
             this.bf.container.position.set(bfPos[0], bfPos[1]);
             this.bf.container.zIndex = bfZ;
+            if (calib && calib.characters && calib.characters.bf && calib.characters.bf.flipX !== undefined) {
+                const s = Math.abs(this.bf.container.scale.x);
+                this.bf.container.scale.x = calib.characters.bf.flipX ? -s : s;
+            }
             this.worldContainer.addChild(this.bf.container);
         }
 
@@ -832,7 +977,6 @@ class PlayStateScene {
             m.sprite.tilePosition.x += m.speed * deltaSec;
         });
 
-        // Scripted Tomatungus & White movements
         if (this.props['tomatungus'] && songPos >= 2000 && this.props['tomatungus'].x > -1000) {
             this.props['tomatungus'].x -= 30 * deltaSec;
         }
@@ -1263,6 +1407,12 @@ window.addEventListener('keydown', (e) => {
 
         if (e.key.toLowerCase() === 'h') {
             playState.editor.toggleSidebar();
+            return;
+        }
+
+        // F key: Flip selected sprite
+        if (e.key.toLowerCase() === 'f') {
+            playState.editor.flipSelected();
             return;
         }
 
