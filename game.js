@@ -45,7 +45,7 @@ const STAGE_CALIBRATIONS = {
         characters: {
             bf: { position: [1046, 941], zIndex: 300 },
             dad: { position: [275, 868], zIndex: 200 },
-            gf: { position: [604, 424], zIndex: 100 } // Dead Noob 49 in Suspect!
+            gf: { position: [604, 424], zIndex: 100 } // Dead Noob in Suspect!
         },
         props: {
             bg: { position: [-550, -270], zIndex: 0 },
@@ -475,37 +475,35 @@ class PlayStateScene {
         this.editor = new StageEditor(this);
     }
 
+    // Steady camera center anchor with gentle 50px turn-sway
     initStageCameras(songId) {
         if (songId.includes('49') || songId.includes('suspect')) {
-            this.dadCam = [500, 480];
-            this.bfCam = [850, 480];
-            this.camTargetX = 675;
-            this.camTargetY = 480;
+            this.roomCenter = [675, 450];
+            this.dadCam = [625, 450];  // Gentle sway left
+            this.bfCam = [725, 450];   // Gentle sway right
         } else if (songId.includes('trot')) {
-            this.dadCam = [540, 390];
-            this.bfCam = [900, 390];
-            this.camTargetX = 720;
-            this.camTargetY = 390;
+            this.roomCenter = [720, 360];
+            this.dadCam = [670, 360];
+            this.bfCam = [770, 360];
         } else if (songId.includes('lied')) {
-            this.dadCam = [640, 460];
-            this.bfCam = [810, 460];
-            this.camTargetX = 725;
-            this.camTargetY = 460;
+            this.roomCenter = [725, 460];
+            this.dadCam = [675, 460];
+            this.bfCam = [775, 460];
         } else if (songId.includes('threat')) {
-            this.dadCam = [800, 600];
-            this.bfCam = [1100, 600];
-            this.camTargetX = 950;
-            this.camTargetY = 600;
+            this.roomCenter = [950, 600];
+            this.dadCam = [900, 600];
+            this.bfCam = [1000, 600];
             this.stageDefaultZoom = 0.5;
             this.baseZoom = 0.5;
             this.camZoom = 0.5;
         } else {
-            this.dadCam = [600, 480];
-            this.bfCam = [850, 480];
-            this.camTargetX = 725;
-            this.camTargetY = 480;
+            this.roomCenter = [725, 450];
+            this.dadCam = [675, 450];
+            this.bfCam = [775, 450];
         }
 
+        this.camTargetX = this.roomCenter[0];
+        this.camTargetY = this.roomCenter[1];
         this.camFocusX = this.camTargetX;
         this.camFocusY = this.camTargetY;
     }
@@ -1131,7 +1129,7 @@ function onStepHit(step) {
             if (playState.props['graypet']) playState.props['graypet'].alpha = 0.001;
             if (playState.props['tawny']) playState.props['tawny'].alpha = 0.001;
             if (playState.props['deadtawny']) playState.props['deadtawny'].alpha = 1;
-            playState.dadCam = [270, 480];
+            playState.dadCam = [625, 450];
         }
         if (step === 1004) {
             if (playState.dad) {
@@ -1157,13 +1155,7 @@ function onStepHit(step) {
             playState.hudContainer.visible = true;
         }
 
-        if (step === 448 || step === 464 || step === 480) {
-            playState.camTargetX = 500; playState.camTargetY = 480;
-        }
-        if (step === 460 || step === 476 || step === 492) {
-            playState.camTargetX = 850; playState.camTargetY = 480;
-        }
-
+        // Pico gun shootout sequence
         if (step === 805) {
             if (playState.bf) {
                 playState.bf.playAnim('lock in', true);
@@ -1250,14 +1242,12 @@ function onStepHit(step) {
                 playState.extraChars.maroon.playAnim('wow', true);
             }
             if (playState.dad) playState.dad.playAnim('wow', true);
-            playState.dadCam = [750, 600];
         }
         if (step === 680) {
             playVideoCutscene('tthreat');
         }
         if (step === 690) {
             if (playState.extraChars.grey) playState.extraChars.grey.container.visible = true;
-            playState.dadCam = [450, 600];
         }
         if (step === 1300) {
             if (playState.extraChars.maroon) playState.extraChars.maroon.playAnim('shift', true);
@@ -1269,7 +1259,6 @@ function onStepHit(step) {
             if (playState.extraChars.maroon) playState.extraChars.maroon.container.visible = false;
             if (playState.extraChars.maroonParasite) playState.extraChars.maroonParasite.container.visible = true;
             if (playState.props['egor']) playState.props['egor'].visible = false;
-            playState.dadCam = [700, 600];
         }
         if (step === 1500) {
             if (playState.props['chef']) playState.props['chef'].alpha = 1;
@@ -1318,15 +1307,15 @@ function onBeatHit(beat) {
         playState.props['caught'].gotoAndPlay(0);
     }
 
-    // Girlfriend alternates danceLeft and danceRight from Frame 0 on every beat
-    if (playState.gf && playState.gf.container.visible && !playState.gf.isLockedAnim) {
+    // Girlfriend alternates danceLeft and danceRight from Frame 0 on every beat (Dead Noob does not dance)
+    if (playState.gf && playState.gf.container.visible && !playState.gf.isLockedAnim && !playState.gf.charName.includes('dead')) {
         playState.gfDanceLeft = !playState.gfDanceLeft;
         playState.gf.playAnim(playState.gfDanceLeft ? 'danceleft' : 'danceright', true);
     }
 
     // Dad & BF reset to Frame 0 every 2 beats to match song tempo
     if (beat % 2 === 0) {
-        if (playState.dad && playState.dad.holdTimer <= 0 && !playState.dad.isLockedAnim) {
+        if (playState.dad && playState.dad.holdTimer <= 0 && !playState.dad.isLockedAnim && !playState.dad.charName.includes('dead')) {
             playState.dad.playAnim('idle', true);
         }
         if (playState.bf && playState.bf.holdTimer <= 0 && !playState.bf.isLockedAnim) {
@@ -1474,6 +1463,7 @@ async function launchSong(item) {
     const songId = item.id.toLowerCase();
     const cleanId = songId.replace(/[^a-z0-9]/g, '');
 
+    // Intro Cutscene Videos
     if (songId.includes('49')) await playVideoCutscene('49');
     else if (songId.includes('suspect')) await playVideoCutscene('suspect');
     else if (songId.includes('lied')) await playVideoCutscene('dontlied');
