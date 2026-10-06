@@ -50,20 +50,19 @@ class StageEditor {
         this.btnCopy = document.getElementById('btn-copy-config');
         this.btnClose = document.getElementById('btn-close-editor');
 
-        // Graphics Layer for Grid, Baseline and Bounding Box
+        // Top graphics layer for editor overlays
         this.editorGraphics = new PIXI.Graphics();
+        this.editorGraphics.zIndex = 99999;
         this.scene.worldContainer.addChild(this.editorGraphics);
 
-        // Enable sorting on all world containers
+        // Enable sorting on main stage container
         this.scene.worldContainer.sortableChildren = true;
-        if (this.scene.stageBack) this.scene.stageBack.sortableChildren = true;
-        if (this.scene.stageFront) this.scene.stageFront.sortableChildren = true;
 
         this.bindEvents();
     }
 
     bindEvents() {
-        this.btnToggleSidebar.onclick = () => this.toggleSidebar();
+        if (this.btnToggleSidebar) this.btnToggleSidebar.onclick = () => this.toggleSidebar();
         if (this.btnCollapseSidebar) this.btnCollapseSidebar.onclick = () => this.toggleSidebar();
         this.btnUndo.onclick = () => this.undo();
         this.btnRedo.onclick = () => this.redo();
@@ -161,6 +160,9 @@ class StageEditor {
             if (p) items.push({ key: `prop_${k}`, name: `Prop: ${k}`, obj: p });
         }
 
+        // Sort items by current zIndex so the tree reflects exact layer order
+        items.sort((a, b) => (b.obj.zIndex || 0) - (a.obj.zIndex || 0));
+
         items.forEach(it => {
             const row = document.createElement('div');
             row.className = 'tree-item' + (this.selectedKey === it.key ? ' selected' : '');
@@ -176,7 +178,7 @@ class StageEditor {
 
             const label = document.createElement('span');
             label.className = 'item-label';
-            label.innerText = it.name;
+            label.innerText = `[${it.obj.zIndex || 0}] ${it.name}`;
 
             row.appendChild(eye);
             row.appendChild(label);
@@ -222,12 +224,11 @@ class StageEditor {
         const newZ = prevZ + delta;
         this.selectedObject.zIndex = newZ;
 
-        if (this.selectedObject.parent) {
-            this.selectedObject.parent.sortChildren();
-        }
+        // Sort all stage elements cleanly within worldContainer
         this.scene.worldContainer.sortChildren();
 
         this.updateReadout();
+        this.populateTree();
         this.renderGuides();
 
         this.history.push({
@@ -252,12 +253,12 @@ class StageEditor {
         if (obj) {
             if (action.type === 'layer') {
                 obj.zIndex = action.from;
-                if (obj.parent) obj.parent.sortChildren();
                 this.scene.worldContainer.sortChildren();
             } else {
                 obj.position.set(action.from.x, action.from.y);
             }
             this.updateReadout();
+            this.populateTree();
             this.renderGuides();
             this.redoStack.push(action);
         }
@@ -270,12 +271,12 @@ class StageEditor {
         if (obj) {
             if (action.type === 'layer') {
                 obj.zIndex = action.to;
-                if (obj.parent) obj.parent.sortChildren();
                 this.scene.worldContainer.sortChildren();
             } else {
                 obj.position.set(action.to.x, action.to.y);
             }
             this.updateReadout();
+            this.populateTree();
             this.renderGuides();
             this.history.push(action);
         }
@@ -373,6 +374,7 @@ class PlayStateScene {
         this.speed = songItem.speed || 2.5;
 
         this.worldContainer = new PIXI.Container();
+        this.worldContainer.sortableChildren = true; // Enables flat layer hierarchy
         this.hudContainer = new PIXI.Container();
 
         this.dad = dadChar;
@@ -401,10 +403,8 @@ class PlayStateScene {
         this.camZoom = this.stageDefaultZoom;
         this.baseZoom = this.camZoom;
 
-        // Stage camera initialization
         this.initStageCameras(songItem.id.toLowerCase());
-        this.setupStage(stageData, stageProps, stageJson);
-        this.setupCharacters(stageJson);
+        this.setupStageAndCharacters(stageData, stageProps, stageJson);
         this.setupStrumlines();
         this.parseChartNotes(songItem.chartData);
         this.setupHUD();
@@ -412,7 +412,7 @@ class PlayStateScene {
         app.stage.addChild(this.worldContainer);
         app.stage.addChild(this.hudContainer);
 
-        // Instantiate Stage 1 Key 7 Editor
+        // Stage 1 Key 7 Editor
         this.editor = new StageEditor(this);
     }
 
@@ -451,10 +451,9 @@ class PlayStateScene {
         this.camFocusY = this.camTargetY;
     }
 
-    setupStage(stageData, stageProps, stageJson) {
-        this.stageBack = new PIXI.Container();
-        this.stageFront = new PIXI.Container();
-
+    // Unified Stage & Character setup: Everything lives directly in worldContainer
+    setupStageAndCharacters(stageData, stageProps, stageJson) {
+        // 1. Stage Props
         if (stageJson && stageJson.props) {
             stageJson.props.forEach(p => {
                 const cleanName = p.assetPath.split('/').pop().toLowerCase();
@@ -472,11 +471,10 @@ class PlayStateScene {
                     if (p.blend === 'subtract') g.blendMode = PIXI.BLEND_MODES.SUBTRACT;
                     if (p.blend === 'add') g.blendMode = PIXI.BLEND_MODES.ADD;
 
+                    g.zIndex = (p.zIndex !== undefined) ? p.zIndex : 0;
                     const propName = p.name ? p.name.toLowerCase() : cleanName;
                     this.props[propName] = g;
-
-                    if (p.zIndex >= 300) this.stageFront.addChild(g);
-                    else this.stageBack.addChild(g);
+                    this.worldContainer.addChild(g);
                     return;
                 }
 
@@ -495,7 +493,7 @@ class PlayStateScene {
                     const aSpr = new PIXI.AnimatedSprite(animTextures);
                     aSpr.position.set(p.position[0], p.position[1]);
                     aSpr.scale.set(p.scale || 1);
-                    aSpr.zIndex = p.zIndex || 0;
+                    aSpr.zIndex = (p.zIndex !== undefined) ? p.zIndex : 0;
                     aSpr.alpha = (p.alpha !== undefined) ? p.alpha : 1;
                     
                     const isPlayerShootProp = (cleanName === 'player');
@@ -507,90 +505,102 @@ class PlayStateScene {
                         aSpr.gotoAndStop(0);
                     }
 
-                    this.stageBack.addChild(aSpr);
                     const propName = p.name ? p.name.toLowerCase() : cleanName;
                     this.props[propName] = aSpr;
                     this.props[cleanName] = aSpr;
+                    this.worldContainer.addChild(aSpr);
                 } else if (tex) {
                     const spr = new PIXI.Sprite(tex);
                     spr.position.set(p.position[0], p.position[1]);
                     spr.scale.set(p.scale || 1);
-
                     spr.alpha = (p.alpha !== undefined) ? p.alpha : 1;
                     if (p.blend === 'subtract') spr.blendMode = PIXI.BLEND_MODES.SUBTRACT;
                     if (p.blend === 'add') spr.blendMode = PIXI.BLEND_MODES.ADD;
-                    spr.zIndex = p.zIndex || 0;
+                    spr.zIndex = (p.zIndex !== undefined) ? p.zIndex : 0;
 
                     const propName = p.name ? p.name.toLowerCase() : cleanName;
                     this.props[propName] = spr;
                     this.props[cleanName] = spr;
-
-                    if (p.zIndex >= 300) this.stageFront.addChild(spr);
-                    else this.stageBack.addChild(spr);
+                    this.worldContainer.addChild(spr);
                 }
             });
 
+            // Mist Background
             if (stageData['mistback'] && stageData['mistmid']) {
                 const mb = new PIXI.TilingSprite(stageData['mistback'], 4000, 720);
                 mb.position.set(-1000, -270);
                 mb.alpha = 0.6;
                 mb.blendMode = PIXI.BLEND_MODES.SCREEN;
-                this.stageBack.addChild(mb);
+                mb.zIndex = 3;
+                this.worldContainer.addChild(mb);
                 this.mistLayers.push({ sprite: mb, speed: 15 });
 
                 const mm = new PIXI.TilingSprite(stageData['mistmid'], 4000, 720);
                 mm.position.set(-1000, -270);
                 mm.alpha = 0.6;
                 mm.blendMode = PIXI.BLEND_MODES.SCREEN;
-                this.stageBack.addChild(mm);
+                mm.zIndex = 3;
+                this.worldContainer.addChild(mm);
                 this.mistLayers.push({ sprite: mm, speed: -15 });
             }
-
-            this.stageBack.sortChildren();
-            this.stageFront.sortChildren();
         }
 
-        this.worldContainer.addChild(this.stageBack);
-    }
-
-    setupCharacters(stageJson) {
+        // 2. Characters (Directly in worldContainer with official zIndex levels)
         const c = (stageJson && stageJson.characters) ? stageJson.characters : null;
 
         let dadPos = [100, 100];
         let bfPos = [770, 450];
         let gfPos = [400, 130];
+        let dadZ = 200;
+        let bfZ = 300;
+        let gfZ = 100;
 
         if (c) {
-            if (c.dad && Array.isArray(c.dad.position)) dadPos = c.dad.position;
-            if (c.bf && Array.isArray(c.bf.position)) bfPos = c.bf.position;
-            if (c.gf && Array.isArray(c.gf.position)) gfPos = c.gf.position;
+            if (c.dad && Array.isArray(c.dad.position)) { dadPos = c.dad.position; dadZ = c.dad.zIndex || 200; }
+            if (c.bf && Array.isArray(c.bf.position)) { bfPos = c.bf.position; bfZ = c.bf.zIndex || 300; }
+            if (c.gf && Array.isArray(c.gf.position)) { gfPos = c.gf.position; gfZ = c.gf.zIndex || 100; }
         }
 
-        if (this.dad) this.dad.container.position.set(dadPos[0], dadPos[1]);
-        if (this.bf) this.bf.container.position.set(bfPos[0], bfPos[1]);
-        if (this.gf) this.gf.container.position.set(gfPos[0], gfPos[1]);
+        if (this.gf) {
+            this.gf.container.position.set(gfPos[0], gfPos[1]);
+            this.gf.container.zIndex = gfZ;
+            this.gf.container.visible = !!(c && c.gf);
+            this.worldContainer.addChild(this.gf.container);
+        }
 
-        if (this.gf && this.gf.container.visible) this.worldContainer.addChild(this.gf.container);
-        if (this.dad) this.worldContainer.addChild(this.dad.container);
-        if (this.bf) this.worldContainer.addChild(this.bf.container);
+        if (this.dad) {
+            this.dad.container.position.set(dadPos[0], dadPos[1]);
+            this.dad.container.zIndex = dadZ;
+            this.worldContainer.addChild(this.dad.container);
+        }
+
+        if (this.bf) {
+            this.bf.container.position.set(bfPos[0], bfPos[1]);
+            this.bf.container.zIndex = bfZ;
+            this.worldContainer.addChild(this.bf.container);
+        }
 
         if (this.extraChars.maroon) {
             this.extraChars.maroon.container.position.set(-950, 530);
+            this.extraChars.maroon.container.zIndex = dadZ + 10;
             this.extraChars.maroon.container.visible = false;
             this.worldContainer.addChild(this.extraChars.maroon.container);
         }
         if (this.extraChars.grey) {
             this.extraChars.grey.container.position.set(-700, 600);
+            this.extraChars.grey.container.zIndex = dadZ + 20;
             this.extraChars.grey.container.visible = false;
             this.worldContainer.addChild(this.extraChars.grey.container);
         }
         if (this.extraChars.maroonParasite) {
             this.extraChars.maroonParasite.container.position.set(-350, 240);
+            this.extraChars.maroonParasite.container.zIndex = dadZ + 10;
             this.extraChars.maroonParasite.container.visible = false;
             this.worldContainer.addChild(this.extraChars.maroonParasite.container);
         }
 
-        this.worldContainer.addChild(this.stageFront);
+        // Initial clean sort of all world layers
+        this.worldContainer.sortChildren();
     }
 
     setupStrumlines() {
@@ -1164,20 +1174,20 @@ window.addEventListener('keydown', (e) => {
             return;
         }
 
-        // 'H' key toggles the Scene Inspector sidebar
+        // H key: Toggle Sidebar
         if (e.key.toLowerCase() === 'h') {
             playState.editor.toggleSidebar();
             return;
         }
 
-        // ` (Backtick) = Layer Up (+1)
+        // ` (Backtick): Layer Forward (+1)
         if (e.code === 'Backquote' || e.key === '`') {
             playState.editor.changeLayer(1);
             e.preventDefault();
             return;
         }
 
-        // \ (Backslash) = Layer Down (-1)
+        // \ (Backslash): Layer Backward (-1)
         if (e.code === 'Backslash' || e.key === '\\') {
             playState.editor.changeLayer(-1);
             e.preventDefault();
@@ -1262,7 +1272,6 @@ async function launchSong(item) {
     const songId = item.id.toLowerCase();
     const cleanId = songId.replace(/[^a-z0-9]/g, '');
 
-    // Intro Cutscene Videos
     if (songId.includes('49')) await playVideoCutscene('49');
     else if (songId.includes('suspect')) await playVideoCutscene('suspect');
     else if (songId.includes('lied')) await playVideoCutscene('dontlied');
