@@ -16,7 +16,7 @@ let playState = null;
 let activeCountdownTimer = null;
 
 // ==========================================================================
-// User Calibrated Stage Configurations (Overrides ZIP Defaults)
+// User Calibrated Stage Configurations
 // ==========================================================================
 const STAGE_CALIBRATIONS = {
     "security": {
@@ -45,7 +45,7 @@ const STAGE_CALIBRATIONS = {
         characters: {
             bf: { position: [1046, 941], zIndex: 300 },
             dad: { position: [275, 868], zIndex: 200 },
-            gf: { position: [604, 424], zIndex: 100 }
+            gf: { position: [604, 424], zIndex: 100 } // Dead Noob 49 in Suspect!
         },
         props: {
             bg: { position: [-550, -270], zIndex: 0 },
@@ -477,15 +477,15 @@ class PlayStateScene {
 
     initStageCameras(songId) {
         if (songId.includes('49') || songId.includes('suspect')) {
-            this.dadCam = [500, 450];
-            this.bfCam = [850, 450];
+            this.dadCam = [500, 480];
+            this.bfCam = [850, 480];
             this.camTargetX = 675;
-            this.camTargetY = 450;
+            this.camTargetY = 480;
         } else if (songId.includes('trot')) {
-            this.dadCam = [540, 360];
-            this.bfCam = [900, 360];
+            this.dadCam = [540, 390];
+            this.bfCam = [900, 390];
             this.camTargetX = 720;
-            this.camTargetY = 360;
+            this.camTargetY = 390;
         } else if (songId.includes('lied')) {
             this.dadCam = [640, 460];
             this.bfCam = [810, 460];
@@ -500,10 +500,10 @@ class PlayStateScene {
             this.baseZoom = 0.5;
             this.camZoom = 0.5;
         } else {
-            this.dadCam = [600, 450];
-            this.bfCam = [850, 450];
+            this.dadCam = [600, 480];
+            this.bfCam = [850, 480];
             this.camTargetX = 725;
-            this.camTargetY = 450;
+            this.camTargetY = 480;
         }
 
         this.camFocusX = this.camTargetX;
@@ -612,7 +612,7 @@ class PlayStateScene {
             }
         }
 
-        // 2. Beach Stage Bopper Selection (from beach.hxc: picks 1 of 4 randomized combinations so they don't pile up!)
+        // 2. Beach Stage Bopper Selection (from beach.hxc)
         const currentSong = this.songItem.id.toLowerCase();
         if (currentSong.includes('threat')) {
             const addBopperSprite = (key, textures, x, y, z, loop = false) => {
@@ -629,7 +629,7 @@ class PlayStateScene {
                 return spr;
             };
 
-            const beachChoice = Math.floor(Math.random() * 4); // Exact 4-way random split from beach.hxc!
+            const beachChoice = Math.floor(Math.random() * 4);
             const bp1 = stageProps['boppers1'] || {};
             const bp2 = stageProps['boppers2'] || {};
 
@@ -671,7 +671,6 @@ class PlayStateScene {
                 addBopperSprite('rhm', bp1['rhmbop'] || Object.values(bp1)[0], 2300, 450, 7);
             }
 
-            // Chef crewmate (hidden until step 1500)
             if (stageProps['chef']) {
                 const chf = stageProps['chef'];
                 const chefSpr = addBopperSprite('chef', chf['chefbop'] || Object.values(chf)[0], 1970, 460, 8);
@@ -695,7 +694,6 @@ class PlayStateScene {
             if (c.gf && Array.isArray(c.gf.position)) { gfPos = c.gf.position; gfZ = c.gf.zIndex || 100; }
         }
 
-        // Apply calibrated character overrides!
         if (calib && calib.characters) {
             if (calib.characters.dad) { dadPos = calib.characters.dad.position; dadZ = calib.characters.dad.zIndex; }
             if (calib.characters.bf) { bfPos = calib.characters.bf.position; bfZ = calib.characters.bf.zIndex; }
@@ -915,7 +913,7 @@ class PlayStateScene {
                 if (val.target === 'dad' && this.dad) {
                     this.dad.playAnim(val.anim, true);
                     if (val.anim === 'fucked') {
-                        this.dad.holdTimer = 15.0;
+                        this.dad.holdTimer = 20.0;
                         this.dad.isLockedAnim = true;
                     }
                 }
@@ -943,7 +941,6 @@ class PlayStateScene {
             m.sprite.tilePosition.x += m.speed * deltaSec;
         });
 
-        // Scripted Tomatungus & White movements
         if (this.props['tomatungus'] && songPos >= 2000 && this.props['tomatungus'].x > -1000) {
             this.props['tomatungus'].x -= 30 * deltaSec;
         }
@@ -1123,7 +1120,7 @@ class PlayStateScene {
     }
 }
 
-// Stage Step Directors
+// Stage Step Directors (Mid-song cutscene hooks untouched)
 function onStepHit(step) {
     if (!playState) return;
     const currentSong = playState.songItem.id.toLowerCase();
@@ -1134,13 +1131,12 @@ function onStepHit(step) {
             if (playState.props['graypet']) playState.props['graypet'].alpha = 0.001;
             if (playState.props['tawny']) playState.props['tawny'].alpha = 0.001;
             if (playState.props['deadtawny']) playState.props['deadtawny'].alpha = 1;
-            playState.dadCam = [270, 450];
+            playState.dadCam = [270, 480];
         }
-        // Black Impostor kills Noob49 at step 1004!
         if (step === 1004) {
             if (playState.dad) {
                 playState.dad.playAnim('fucked', true);
-                playState.dad.holdTimer = 20.0; // Locked cutscene animation
+                playState.dad.holdTimer = 20.0;
                 playState.dad.isLockedAnim = true;
             }
         }
@@ -1162,13 +1158,12 @@ function onStepHit(step) {
         }
 
         if (step === 448 || step === 464 || step === 480) {
-            playState.camTargetX = 500; playState.camTargetY = 450;
+            playState.camTargetX = 500; playState.camTargetY = 480;
         }
         if (step === 460 || step === 476 || step === 492) {
-            playState.camTargetX = 850; playState.camTargetY = 450;
+            playState.camTargetX = 850; playState.camTargetY = 480;
         }
 
-        // Pico gun shootout sequence
         if (step === 805) {
             if (playState.bf) {
                 playState.bf.playAnim('lock in', true);
@@ -1291,11 +1286,12 @@ function onStepHit(step) {
     }
 }
 
+// In-tempo musical head-bobbing & idle animation resets
 function onBeatHit(beat) {
     if (!playState) return;
     const currentSong = playState.songItem.id.toLowerCase();
 
-    // Beach Boppers bop on the beat!
+    // Beach Boppers bop on every 2 beats
     if (currentSong.includes('threat') && beat % 2 === 0) {
         playState.beachBoppers.forEach(b => {
             if (b && b.visible && typeof b.gotoAndPlay === 'function') {
@@ -1322,17 +1318,31 @@ function onBeatHit(beat) {
         playState.props['caught'].gotoAndPlay(0);
     }
 
-    if (playState.gf && playState.gf.container.visible) {
+    // Girlfriend alternates danceLeft and danceRight from Frame 0 on every beat
+    if (playState.gf && playState.gf.container.visible && !playState.gf.isLockedAnim) {
         playState.gfDanceLeft = !playState.gfDanceLeft;
         playState.gf.playAnim(playState.gfDanceLeft ? 'danceleft' : 'danceright', true);
     }
 
-    if (playState.dad && playState.dad.holdTimer <= 0) playState.dad.playAnim('idle');
-    if (playState.bf && playState.bf.holdTimer <= 0) playState.bf.playAnim('idle');
+    // Dad & BF reset to Frame 0 every 2 beats to match song tempo
+    if (beat % 2 === 0) {
+        if (playState.dad && playState.dad.holdTimer <= 0 && !playState.dad.isLockedAnim) {
+            playState.dad.playAnim('idle', true);
+        }
+        if (playState.bf && playState.bf.holdTimer <= 0 && !playState.bf.isLockedAnim) {
+            playState.bf.playAnim('idle', true);
+        }
 
-    if (playState.extraChars.maroon && playState.extraChars.maroon.holdTimer <= 0) playState.extraChars.maroon.playAnim('idle');
-    if (playState.extraChars.grey && playState.extraChars.grey.holdTimer <= 0) playState.extraChars.grey.playAnim('idle');
-    if (playState.extraChars.maroonParasite && playState.extraChars.maroonParasite.holdTimer <= 0) playState.extraChars.maroonParasite.playAnim('idle');
+        if (playState.extraChars.maroon && playState.extraChars.maroon.holdTimer <= 0 && !playState.extraChars.maroon.isLockedAnim) {
+            playState.extraChars.maroon.playAnim('idle', true);
+        }
+        if (playState.extraChars.grey && playState.extraChars.grey.holdTimer <= 0 && !playState.extraChars.grey.isLockedAnim) {
+            playState.extraChars.grey.playAnim('idle', true);
+        }
+        if (playState.extraChars.maroonParasite && playState.extraChars.maroonParasite.holdTimer <= 0 && !playState.extraChars.maroonParasite.isLockedAnim) {
+            playState.extraChars.maroonParasite.playAnim('idle', true);
+        }
+    }
 
     playState.receptors.forEach(r => r.container.scale.set(1.06));
 }
@@ -1464,7 +1474,6 @@ async function launchSong(item) {
     const songId = item.id.toLowerCase();
     const cleanId = songId.replace(/[^a-z0-9]/g, '');
 
-    // Intro Cutscene Videos
     if (songId.includes('49')) await playVideoCutscene('49');
     else if (songId.includes('suspect')) await playVideoCutscene('suspect');
     else if (songId.includes('lied')) await playVideoCutscene('dontlied');
