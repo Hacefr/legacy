@@ -144,7 +144,7 @@ class DynamicAtlasCharacter {
 
         this.isTimelineDriven = Object.keys(this.timelineAnims).length > 0;
 
-        // Dead Noob stays in 'idle'
+        // Starting animation
         if (this.charConfig.startingAnimation) {
             this.currentAnim = this.charConfig.startingAnimation.toLowerCase();
         } else if (this.isGF && !this.charName.includes('dead')) {
@@ -158,7 +158,7 @@ class DynamicAtlasCharacter {
         this.holdTimer = 0;
         this.fps = 24;
 
-        // Restores authentic flipX directly from author's JSON!
+        // Uses clean scale and flip directly from character JSON
         const charScale = this.charConfig.scale || 1.0;
         this.container.scale.set(this.charConfig.flipX ? -charScale : charScale, charScale);
 
@@ -299,7 +299,7 @@ class DynamicAtlasCharacter {
             }
         }
 
-        // Timeline Mode
+        // Timeline Mode — ZERO hidden translations! You have 100% control in the editor!
         if (this.mode === 'timeline' && this.activeAnimData) {
             const masterFrame = this.activeAnimData.startFrame + this.frame;
 
@@ -319,23 +319,6 @@ class DynamicAtlasCharacter {
 
                 for (const el of activeFR.E) {
                     const baseMat = new PIXI.Matrix();
-
-                    if (this.charName === 'noob49') {
-                        baseMat.translate(280, -700);
-                    } else if (this.charName.includes('deadnoob')) {
-                        baseMat.translate(186, 477); // Dead Noob lands on the floor
-                    } else if (this.charName.includes('detective')) {
-                        baseMat.translate(0, -380);
-                    } else if (this.charName.includes('horse')) {
-                        baseMat.translate(-150, -420);
-                    } else if (this.charName.includes('purple')) {
-                        baseMat.translate(-200, -410);
-                    } else if (this.charName.includes('greythreat')) {
-                        baseMat.translate(0, -220);
-                    } else if (this.charName.includes('pinkthreat')) {
-                        baseMat.translate(0, -260);
-                    }
-
                     baseMat.translate(this.globalOffset[0] || 0, this.globalOffset[1] || 0);
 
                     if (el.ASI) {
@@ -356,23 +339,9 @@ class DynamicAtlasCharacter {
             return;
         }
 
-        // Symbol Mode
+        // Symbol Mode — Zero hidden translations! Locked to Idle Anchor to prevent note jumping.
         if (this.mode === 'symbol' && this.activeSymbolName) {
             const rootMat = (this.rootMatrices[this.activeSymbolName] || this.idleRootMatrix).clone();
-            
-            if (this.charName.includes('pico')) {
-                rootMat.translate(116, -180);
-            } else if (this.charName.includes('maroonthreat')) {
-                rootMat.translate(0, -260);
-            } else if (this.charName.includes('maroonparasite')) {
-                rootMat.translate(0, -200);
-            } else if (this.isPlayer) {
-                rootMat.translate(-405, -280);
-            } else if (this.isGF) {
-                rootMat.translate(-350, -320);
-            } else {
-                rootMat.translate(-200, -320);
-            }
 
             const idleOff = this.animOffsets['idle'] || this.animOffsets['danceleft'] || [0, 0];
             const curOff = this.animOffsets[this.currentAnim] || idleOff;
@@ -428,9 +397,10 @@ class DynamicAtlasCharacter {
     }
 }
 
-// 100% Reliable Loader: Reads exact assetPath from character JSON
+// Reliable AssetPath Loader (Loads Dead Noob, Horsemate, etc. directly from char JSON)
 async function loadCharacter(charName, isPlayer, isGF = false) {
     const clean = charName.toLowerCase().trim();
+    const cleanId = clean.replace(/[^a-z0-9]/g, '');
     const charConfig = VirtualFS.charJsons[clean] || {};
     let globalX = 0;
     let globalY = 0;
