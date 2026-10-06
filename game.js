@@ -16,7 +16,7 @@ let playState = null;
 let activeCountdownTimer = null;
 
 // ==========================================================================
-// User Calibrated Stage Configurations
+// User Calibrated Stage Configurations (All 5 Songs Grounded)
 // ==========================================================================
 const STAGE_CALIBRATIONS = {
     "security": {
@@ -45,7 +45,7 @@ const STAGE_CALIBRATIONS = {
         characters: {
             bf: { position: [1046, 941], zIndex: 300 },
             dad: { position: [275, 868], zIndex: 200 },
-            gf: { position: [604, 424], zIndex: 100 } // Dead Noob in Suspect!
+            gf: { position: [604, 424], zIndex: 100 } // Dead Noob sitting directly on the floor
         },
         props: {
             bg: { position: [-550, -270], zIndex: 0 },
@@ -89,6 +89,14 @@ const STAGE_CALIBRATIONS = {
             overlay: { position: [-590, -237], zIndex: 352 },
             overlah: { position: [-590, -237], zIndex: 352 }
         }
+    },
+    "medbay": {
+        characters: {
+            bf: { position: [1180, 875], zIndex: 300 },
+            dad: { position: [351.5, 928], zIndex: 200 },
+            gf: { position: [1320, 741], zIndex: 100 }
+        },
+        props: {}
     }
 };
 
@@ -475,31 +483,31 @@ class PlayStateScene {
         this.editor = new StageEditor(this);
     }
 
-    // Steady camera center anchor with gentle 50px turn-sway
+    // Steady camera center anchor with gentle 40px turn-sway keeps BOTH characters on-screen!
     initStageCameras(songId) {
         if (songId.includes('49') || songId.includes('suspect')) {
             this.roomCenter = [675, 450];
-            this.dadCam = [625, 450];  // Gentle sway left
-            this.bfCam = [725, 450];   // Gentle sway right
+            this.dadCam = [635, 450];
+            this.bfCam = [715, 450];
         } else if (songId.includes('trot')) {
             this.roomCenter = [720, 360];
-            this.dadCam = [670, 360];
-            this.bfCam = [770, 360];
+            this.dadCam = [680, 360];
+            this.bfCam = [760, 360];
         } else if (songId.includes('lied')) {
             this.roomCenter = [725, 460];
-            this.dadCam = [675, 460];
-            this.bfCam = [775, 460];
+            this.dadCam = [685, 460];
+            this.bfCam = [765, 460];
         } else if (songId.includes('threat')) {
             this.roomCenter = [950, 600];
-            this.dadCam = [900, 600];
-            this.bfCam = [1000, 600];
+            this.dadCam = [910, 600];
+            this.bfCam = [990, 600];
             this.stageDefaultZoom = 0.5;
             this.baseZoom = 0.5;
             this.camZoom = 0.5;
         } else {
             this.roomCenter = [725, 450];
-            this.dadCam = [675, 450];
-            this.bfCam = [775, 450];
+            this.dadCam = [685, 450];
+            this.bfCam = [765, 450];
         }
 
         this.camTargetX = this.roomCenter[0];
@@ -610,7 +618,7 @@ class PlayStateScene {
             }
         }
 
-        // 2. Beach Stage Bopper Selection (from beach.hxc)
+        // 2. Beach Stage Bopper Selection
         const currentSong = this.songItem.id.toLowerCase();
         if (currentSong.includes('threat')) {
             const addBopperSprite = (key, textures, x, y, z, loop = false) => {
@@ -1118,7 +1126,7 @@ class PlayStateScene {
     }
 }
 
-// Stage Step Directors (Mid-song cutscene hooks untouched)
+// Stage Step Directors
 function onStepHit(step) {
     if (!playState) return;
     const currentSong = playState.songItem.id.toLowerCase();
@@ -1155,7 +1163,6 @@ function onStepHit(step) {
             playState.hudContainer.visible = true;
         }
 
-        // Pico gun shootout sequence
         if (step === 805) {
             if (playState.bf) {
                 playState.bf.playAnim('lock in', true);
