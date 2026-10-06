@@ -144,7 +144,7 @@ class DynamicAtlasCharacter {
 
         this.isTimelineDriven = Object.keys(this.timelineAnims).length > 0;
 
-        // Fixed: Dead Noob starts in 'idle', never danceright!
+        // Dead Noob stays in 'idle'
         if (this.charConfig.startingAnimation) {
             this.currentAnim = this.charConfig.startingAnimation.toLowerCase();
         } else if (this.isGF && !this.charName.includes('dead')) {
@@ -158,10 +158,9 @@ class DynamicAtlasCharacter {
         this.holdTimer = 0;
         this.fps = 24;
 
+        // Restores authentic flipX directly from author's JSON!
         const charScale = this.charConfig.scale || 1.0;
-        const configFlip = !!this.charConfig.flipX;
-        this.isFlipped = this.isPlayer ? !configFlip : configFlip;
-        this.container.scale.set(this.isFlipped ? -charScale : charScale, charScale);
+        this.container.scale.set(this.charConfig.flipX ? -charScale : charScale, charScale);
 
         this.playAnim(this.currentAnim, true);
     }
@@ -321,11 +320,10 @@ class DynamicAtlasCharacter {
                 for (const el of activeFR.E) {
                     const baseMat = new PIXI.Matrix();
 
-                    // Floor alignments
                     if (this.charName === 'noob49') {
                         baseMat.translate(280, -700);
                     } else if (this.charName.includes('deadnoob')) {
-                        baseMat.translate(186, 477); // Drops Dead Noob onto the floor in Suspect!
+                        baseMat.translate(186, 477); // Dead Noob lands on the floor
                     } else if (this.charName.includes('detective')) {
                         baseMat.translate(0, -380);
                     } else if (this.charName.includes('horse')) {
@@ -391,7 +389,6 @@ class DynamicAtlasCharacter {
         if (this.holdTimer > 0) {
             this.holdTimer -= deltaSec;
             if (this.holdTimer <= 0 && !this.isLockedAnim) {
-                // Dead Noob never dances to the beat; stays in idle!
                 if (!this.charName.includes('dead')) {
                     this.playAnim(this.isGF ? 'danceright' : 'idle');
                 }
@@ -431,9 +428,9 @@ class DynamicAtlasCharacter {
     }
 }
 
+// 100% Reliable Loader: Reads exact assetPath from character JSON
 async function loadCharacter(charName, isPlayer, isGF = false) {
     const clean = charName.toLowerCase().trim();
-    const cleanId = clean.replace(/[^a-z0-9]/g, '');
     const charConfig = VirtualFS.charJsons[clean] || {};
     let globalX = 0;
     let globalY = 0;
@@ -446,22 +443,23 @@ async function loadCharacter(charName, isPlayer, isGF = false) {
         globalY += charConfig.offsets[1];
     }
 
+    let cleanAssetPath = '';
+    if (charConfig.assetPath) {
+        cleanAssetPath = charConfig.assetPath.replace('shared:', '').replace('default:', '').toLowerCase().trim();
+    }
+
     let animJsonEntry = null;
     let spritemapJsonEntry = null;
     let spritemapPngEntry = null;
 
     for (const [path, entry] of Object.entries(VirtualFS.assets)) {
         const pNorm = path.replace(/\\/g, '/').toLowerCase();
-        const parts = pNorm.split('/');
-        const folderName = parts[parts.length - 2] || '';
 
         let matches = false;
-        if (clean === 'noob49') {
-            matches = (folderName === 'noob49');
-        } else if (clean === 'deadnoob49') {
-            matches = (folderName === 'deadnoob49');
+        if (cleanAssetPath) {
+            matches = pNorm.includes(cleanAssetPath + '/');
         } else {
-            matches = (folderName === clean || folderName.replace(/[^a-z0-9]/g, '') === cleanId);
+            matches = pNorm.includes('/' + clean + '/');
         }
 
         if (matches) {
