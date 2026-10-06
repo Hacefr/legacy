@@ -16,14 +16,14 @@ let playState = null;
 let activeCountdownTimer = null;
 
 // ==========================================================================
-// User Calibrated Stage Configurations
+// User Calibrated Stage Configurations (All 4 Songs Locked In Permanently!)
 // ==========================================================================
 const STAGE_CALIBRATIONS = {
     "security": {
         characters: {
-            bf: { position: [1291, 895], zIndex: 300 },
-            dad: { position: [632, 1198], zIndex: 200 },
-            gf: { position: [1067, 746], zIndex: 100 }
+            bf: { position: [897, 615], zIndex: 300, flipX: false },
+            dad: { position: [364, 496], zIndex: 200, flipX: true },
+            gf: { position: [718, 405], zIndex: 100, flipX: false }
         },
         props: {
             bg: { position: [-550, -270], zIndex: 0 },
@@ -43,9 +43,9 @@ const STAGE_CALIBRATIONS = {
     },
     "security2": {
         characters: {
-            bf: { position: [1046, 941], zIndex: 300 },
-            dad: { position: [275, 868], zIndex: 200 },
-            gf: { position: [604, 424], zIndex: 100 }
+            bf: { position: [1172, 757], zIndex: 300, flipX: false },
+            dad: { position: [275, 487], zIndex: 200, flipX: false },
+            gf: { position: [590, 481], zIndex: 100, flipX: false } // Dead Noob sitting directly on floor!
         },
         props: {
             bg: { position: [-550, -270], zIndex: 0 },
@@ -56,16 +56,16 @@ const STAGE_CALIBRATIONS = {
             table: { position: [35, 210], zIndex: 6 },
             substract: { position: [-550, -230], zIndex: 8 },
             player: { position: [-900, 400], zIndex: 350 },
-            vignette: { position: [-550, -250], zIndex: 351 },
+            vignette: { position: [-550, -200], zIndex: 351 },
             loblack: { position: [0, 0], zIndex: 352 },
-            discuss: { position: [407, 140], zIndex: 353 }
+            discuss: { position: [407, 200], zIndex: 353 }
         }
     },
     "horse": {
         characters: {
-            bf: { position: [1268, 946], zIndex: 300 },
-            dad: { position: [72, 949], zIndex: 200 },
-            gf: { position: [960, 777], zIndex: 100 }
+            bf: { position: [918, 626], zIndex: 300, flipX: false },
+            dad: { position: [-18, 489], zIndex: 200, flipX: false },
+            gf: { position: [760, 457], zIndex: 100, flipX: false }
         },
         props: {
             "1": { position: [-917, -203], zIndex: 2 },
@@ -77,14 +77,14 @@ const STAGE_CALIBRATIONS = {
             two: { position: [130, 415], zIndex: 3 },
             three: { position: [-600, 260], zIndex: 4 },
             ground: { position: [-550, 737], zIndex: 5 },
-            horse1: { position: [-2000, 380], zIndex: 6 },
+            horse1: { position: [-3480, 380], zIndex: 9 },
             horses: { position: [-3480, 380], zIndex: 9 },
-            horse2: { position: [-3500, 380], zIndex: 7 },
-            horse3: { position: [-3400, 380], zIndex: 8 },
+            horse2: { position: [-3480, 380], zIndex: 9 },
+            horse3: { position: [-3480, 380], zIndex: 9 },
             horse4: { position: [-3480, 380], zIndex: 9 },
             caught: { position: [1400, 470], zIndex: 10 },
             caughthorse: { position: [1400, 470], zIndex: 10 },
-            front: { position: [-866, 640], zIndex: 350 },
+            front: { position: [-766, 640], zIndex: 350 },
             subtract: { position: [-595, -222], zIndex: 351 },
             overlay: { position: [-590, -237], zIndex: 352 },
             overlah: { position: [-590, -237], zIndex: 352 }
@@ -92,11 +92,27 @@ const STAGE_CALIBRATIONS = {
     },
     "medbay": {
         characters: {
-            bf: { position: [1180, 875], zIndex: 300 },
-            dad: { position: [351.5, 928], zIndex: 200 },
-            gf: { position: [1320, 741], zIndex: 100 }
+            bf: { position: [906, 625], zIndex: 300, flipX: false },
+            dad: { position: [79, 521], zIndex: 200, flipX: false },
+            gf: { position: [1310, 451], zIndex: 100, flipX: false }
         },
-        props: {}
+        props: {
+            bg: { position: [-300, -100], zIndex: 0 },
+            wall: { position: [-300, -100], zIndex: 0 },
+            shelf: { position: [358, 290], zIndex: 1 },
+            bloody: { position: [-300, -100], zIndex: 354 },
+            loblack: { position: [0, 0], zIndex: 3 },
+            blooodfuckkk: { position: [0, 0], zIndex: 350 },
+            guy2: { position: [-350, 760], zIndex: 351 },
+            kakosfriend: { position: [-350, 760], zIndex: 351 },
+            guy3: { position: [1330, 650], zIndex: 352 },
+            gilbert: { position: [1330, 650], zIndex: 352 },
+            light: { position: [1200, -140], zIndex: 353 },
+            lights: { position: [1200, -140], zIndex: 353 },
+            bloody2: { position: [-300, -100], zIndex: 354 },
+            vignette: { position: [-300, -100], zIndex: 355 },
+            loblack2: { position: [0, 0], zIndex: 356 }
+        }
     }
 };
 
@@ -116,7 +132,6 @@ class StageEditor {
         this.sidebarVisible = true;
         this.baselineY = 720;
 
-        // UI references
         this.ui = document.getElementById('editor-ui');
         this.sidebar = document.getElementById('editor-sidebar');
         this.tree = document.getElementById('scene-tree');
@@ -500,6 +515,7 @@ class PlayStateScene {
         this.camZoom = this.stageDefaultZoom;
         this.baseZoom = this.camZoom;
 
+        // Initialize Stage Cameras
         this.initStageCameras(songItem.id.toLowerCase());
         this.setupStageAndCharacters(stageData, stageProps, stageJson);
         this.setupStrumlines();
@@ -509,10 +525,12 @@ class PlayStateScene {
         app.stage.addChild(this.worldContainer);
         app.stage.addChild(this.hudContainer);
 
+        // Preload Official Health Icons
+        this.loadIcons();
+
         this.editor = new StageEditor(this);
     }
 
-    // Static Camera: Matches editor positioning 1:1
     initStageCameras(songId) {
         if (songId.includes('49') || songId.includes('suspect')) {
             this.camTargetX = 675;
@@ -536,6 +554,65 @@ class PlayStateScene {
 
         this.camFocusX = this.camTargetX;
         this.camFocusY = this.camTargetY;
+    }
+
+    // Official FNF 2-Frame Icon Loader (Neutral & Losing)
+    async loadIcons() {
+        const loadIconTextures = async (iconId) => {
+            let iconEntry = null;
+            const target = `icon-${iconId.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+
+            for (const [p, e] of Object.entries(VirtualFS.assets)) {
+                const pClean = p.toLowerCase().replace(/[^a-z0-9\/\.]/g, '');
+                if (pClean.includes(`/icons/${target}.png`) || pClean.endsWith(`/${target}.png`)) {
+                    iconEntry = e;
+                    break;
+                }
+            }
+
+            if (!iconEntry) return null;
+
+            try {
+                const blob = await iconEntry.async('blob');
+                const url = createTrackedBlobUrl(blob);
+                const tex = await PIXI.Texture.fromURL(url);
+                const bt = tex.baseTexture;
+
+                // Slice 2-frame icon grid [Neutral, Losing]
+                const frameW = Math.floor(bt.width / 2);
+                const frameH = bt.height;
+
+                const neutralTex = new PIXI.Texture(bt, new PIXI.Rectangle(0, 0, frameW, frameH));
+                const loseTex = new PIXI.Texture(bt, new PIXI.Rectangle(frameW, 0, frameW, frameH));
+                return { neutralTex, loseTex, frameW, frameH };
+            } catch(e) {
+                return null;
+            }
+        };
+
+        const dadIconId = this.dad.charConfig.healthIcon ? (this.dad.charConfig.healthIcon.id || this.dad.charName) : this.dad.charName;
+        const bfIconId = this.bf.charConfig.healthIcon ? (this.bf.charConfig.healthIcon.id || this.bf.charName) : this.bf.charName;
+
+        const dadIconData = await loadIconTextures(dadIconId);
+        const bfIconData = await loadIconTextures(bfIconId);
+
+        if (dadIconData && this.dadIcon) {
+            this.dadIconData = dadIconData;
+            this.dadIconSprite.texture = dadIconData.neutralTex;
+            this.dadIconSprite.scale.set(0.8);
+            this.dadIconSprite.anchor.set(0.5);
+            this.dadIcon.removeChildren();
+            this.dadIcon.addChild(this.dadIconSprite);
+        }
+
+        if (bfIconData && this.bfIcon) {
+            this.bfIconData = bfIconData;
+            this.bfIconSprite.texture = bfIconData.neutralTex;
+            this.bfIconSprite.scale.set(-0.8, 0.8); // Flipped facing left
+            this.bfIconSprite.anchor.set(0.5);
+            this.bfIcon.removeChildren();
+            this.bfIcon.addChild(this.bfIconSprite);
+        }
     }
 
     setupStageAndCharacters(stageData, stageProps, stageJson) {
@@ -742,7 +819,7 @@ class PlayStateScene {
             this.gf.container.zIndex = gfZ;
             if (calib && calib.characters && calib.characters.gf && calib.characters.gf.flipX !== undefined) {
                 const s = Math.abs(this.gf.container.scale.x);
-                this.gf.container.scale.x = calib.characters.gf.flipX ? -s : s;
+                this.gf.container.scale.set(calib.characters.gf.flipX ? -s : s, s);
             }
             this.gf.container.visible = !!(c && c.gf);
             this.worldContainer.addChild(this.gf.container);
@@ -753,7 +830,7 @@ class PlayStateScene {
             this.dad.container.zIndex = dadZ;
             if (calib && calib.characters && calib.characters.dad && calib.characters.dad.flipX !== undefined) {
                 const s = Math.abs(this.dad.container.scale.x);
-                this.dad.container.scale.x = calib.characters.dad.flipX ? -s : s;
+                this.dad.container.scale.set(calib.characters.dad.flipX ? -s : s, s);
             }
             this.worldContainer.addChild(this.dad.container);
         }
@@ -763,7 +840,7 @@ class PlayStateScene {
             this.bf.container.zIndex = bfZ;
             if (calib && calib.characters && calib.characters.bf && calib.characters.bf.flipX !== undefined) {
                 const s = Math.abs(this.bf.container.scale.x);
-                this.bf.container.scale.x = calib.characters.bf.flipX ? -s : s;
+                this.bf.container.scale.set(calib.characters.bf.flipX ? -s : s, s);
             }
             this.worldContainer.addChild(this.bf.container);
         }
@@ -885,6 +962,18 @@ class PlayStateScene {
         this.barFill = new PIXI.Graphics();
         this.healthBarCont.addChild(this.barFill);
 
+        // Icon containers & sprites
+        this.dadIcon = new PIXI.Container();
+        this.bfIcon = new PIXI.Container();
+        this.dadIconSprite = new PIXI.Sprite();
+        this.bfIconSprite = new PIXI.Sprite();
+
+        this.dadIcon.addChild(this.dadIconSprite);
+        this.bfIcon.addChild(this.bfIconSprite);
+
+        this.healthBarCont.addChild(this.dadIcon);
+        this.healthBarCont.addChild(this.bfIcon);
+
         this.scoreText = new PIXI.Text('Score: 0 | Misses: 0 | Accuracy: ?', {
             fontFamily: 'Segoe UI, sans-serif',
             fontSize: 16,
@@ -925,6 +1014,19 @@ class PlayStateScene {
         this.barFill.beginFill(this.isDark ? 0x000000 : 0x31b0d5);
         this.barFill.drawRect(bw / 2 - bfWidth, -bh / 2, bfWidth, bh);
         this.barFill.endFill();
+
+        // Icon Positioning along the health split line
+        const splitX = (bw / 2 - bfWidth);
+        this.dadIcon.position.set(splitX - 35, 0);
+        this.bfIcon.position.set(splitX + 35, 0);
+
+        // Icon frame switching: Neutral vs Losing!
+        if (this.bfIconData && this.bfIconSprite) {
+            this.bfIconSprite.texture = (this.health < 0.4) ? this.bfIconData.loseTex : this.bfIconData.neutralTex;
+        }
+        if (this.dadIconData && this.dadIconSprite) {
+            this.dadIconSprite.texture = (this.health > 1.6) ? this.dadIconData.loseTex : this.dadIconData.neutralTex;
+        }
     }
 
     triggerEvent(e) {
@@ -973,10 +1075,21 @@ class PlayStateScene {
         if (this.extraChars.grey && this.extraChars.grey.container.visible) this.extraChars.grey.update(deltaSec);
         if (this.extraChars.maroonParasite && this.extraChars.maroonParasite.container.visible) this.extraChars.maroonParasite.update(deltaSec);
 
+        // Health Icon Beat Bop smooth lerp back to 1.0
+        if (this.dadIcon && this.dadIcon.scale.x > 1.0) {
+            this.dadIcon.scale.x += (1.0 - this.dadIcon.scale.x) * 0.15;
+            this.dadIcon.scale.y += (1.0 - this.dadIcon.scale.y) * 0.15;
+        }
+        if (this.bfIcon && this.bfIcon.scale.x > 1.0) {
+            this.bfIcon.scale.x += (1.0 - this.bfIcon.scale.x) * 0.15;
+            this.bfIcon.scale.y += (1.0 - this.bfIcon.scale.y) * 0.15;
+        }
+
         this.mistLayers.forEach(m => {
             m.sprite.tilePosition.x += m.speed * deltaSec;
         });
 
+        // Scripted Tomatungus & White movements
         if (this.props['tomatungus'] && songPos >= 2000 && this.props['tomatungus'].x > -1000) {
             this.props['tomatungus'].x -= 30 * deltaSec;
         }
@@ -1316,6 +1429,10 @@ function onStepHit(step) {
 function onBeatHit(beat) {
     if (!playState) return;
     const currentSong = playState.songItem.id.toLowerCase();
+
+    // Health Icons bop to the beat!
+    if (playState.dadIcon) playState.dadIcon.scale.set(1.25);
+    if (playState.bfIcon) playState.bfIcon.scale.set(1.25);
 
     // Beach Boppers bop on every 2 beats
     if (currentSong.includes('threat') && beat % 2 === 0) {
