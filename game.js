@@ -514,13 +514,12 @@ class PlayStateScene {
         const stageName = this.songItem.stage || 'security';
         const calib = STAGE_CALIBRATIONS[stageName] || null;
 
-        // 1. Base Props Setup (Uses calibrated positions if present!)
+        // 1. Stage Props Setup
         if (stageJson && stageJson.props) {
             stageJson.props.forEach(p => {
                 const cleanName = p.assetPath.split('/').pop().toLowerCase();
                 const tex = stageData[cleanName];
 
-                // Check for user-calibrated prop overrides!
                 let propPos = p.position;
                 let propZ = p.zIndex !== undefined ? p.zIndex : 0;
                 if (calib && calib.props && calib.props[cleanName]) {
@@ -680,7 +679,7 @@ class PlayStateScene {
             }
         }
 
-        // 3. Characters Placement (Prioritizes user's calibrated coordinates!)
+        // 3. Characters Placement
         const c = (stageJson && stageJson.characters) ? stageJson.characters : null;
 
         let dadPos = [100, 100];
@@ -913,7 +912,13 @@ class PlayStateScene {
                 break;
 
             case 'PlayAnimation':
-                if (val.target === 'dad' && this.dad) this.dad.playAnim(val.anim, true);
+                if (val.target === 'dad' && this.dad) {
+                    this.dad.playAnim(val.anim, true);
+                    if (val.anim === 'fucked') {
+                        this.dad.holdTimer = 15.0;
+                        this.dad.isLockedAnim = true;
+                    }
+                }
                 if (val.target === 'bf' && this.bf) this.bf.playAnim(val.anim, true);
                 break;
         }
@@ -1125,11 +1130,19 @@ function onStepHit(step) {
 
     // 1. "49"
     if (currentSong.includes('49')) {
-        if (step >= 993) {
+        if (step === 993) {
             if (playState.props['graypet']) playState.props['graypet'].alpha = 0.001;
             if (playState.props['tawny']) playState.props['tawny'].alpha = 0.001;
             if (playState.props['deadtawny']) playState.props['deadtawny'].alpha = 1;
             playState.dadCam = [270, 450];
+        }
+        // Black Impostor kills Noob49 at step 1004!
+        if (step === 1004) {
+            if (playState.dad) {
+                playState.dad.playAnim('fucked', true);
+                playState.dad.holdTimer = 20.0; // Locked cutscene animation
+                playState.dad.isLockedAnim = true;
+            }
         }
     }
 
@@ -1155,20 +1168,36 @@ function onStepHit(step) {
             playState.camTargetX = 850; playState.camTargetY = 450;
         }
 
+        // Pico gun shootout sequence
         if (step === 805) {
-            if (playState.bf) playState.bf.playAnim('lock in', true);
+            if (playState.bf) {
+                playState.bf.playAnim('lock in', true);
+                playState.bf.holdTimer = 2.0;
+            }
             if (playState.props['player'] && typeof playState.props['player'].gotoAndPlay === 'function') {
                 playState.props['player'].loop = false;
                 playState.props['player'].gotoAndPlay(0);
             }
         }
         if (step === 812) {
-            if (playState.bf) playState.bf.playAnim('cock', true);
-            if (playState.dad) playState.dad.playAnim('singright', true);
+            if (playState.bf) {
+                playState.bf.playAnim('cock', true);
+                playState.bf.holdTimer = 1.0;
+            }
+            if (playState.dad) {
+                playState.dad.playAnim('singright', true);
+                playState.dad.holdTimer = 1.0;
+            }
         }
         if (step === 816) {
-            if (playState.bf) playState.bf.playAnim('blast', true);
-            if (playState.dad) playState.dad.playAnim('shock', true);
+            if (playState.bf) {
+                playState.bf.playAnim('blast', true);
+                playState.bf.holdTimer = 3.0;
+            }
+            if (playState.dad) {
+                playState.dad.playAnim('shock', true);
+                playState.dad.holdTimer = 3.0;
+            }
         }
     }
 
@@ -1266,7 +1295,7 @@ function onBeatHit(beat) {
     if (!playState) return;
     const currentSong = playState.songItem.id.toLowerCase();
 
-    // Beach Stage Boppers dance on the beat!
+    // Beach Boppers bop on the beat!
     if (currentSong.includes('threat') && beat % 2 === 0) {
         playState.beachBoppers.forEach(b => {
             if (b && b.visible && typeof b.gotoAndPlay === 'function') {
