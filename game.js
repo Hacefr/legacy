@@ -28,16 +28,21 @@ class StageEditor {
         this.redoStack = [];
         this.showGrid = true;
         this.showBaseline = true;
+        this.sidebarVisible = true;
         this.baselineY = 720;
 
         // UI references
         this.ui = document.getElementById('editor-ui');
+        this.sidebar = document.getElementById('editor-sidebar');
         this.tree = document.getElementById('scene-tree');
         this.lblName = document.getElementById('lbl-selected-name');
         this.lblX = document.getElementById('lbl-coord-x');
         this.lblY = document.getElementById('lbl-coord-y');
+        this.lblZ = document.getElementById('lbl-coord-z');
         this.toast = document.getElementById('copy-toast');
 
+        this.btnToggleSidebar = document.getElementById('btn-toggle-sidebar');
+        this.btnCollapseSidebar = document.getElementById('btn-collapse-sidebar');
         this.btnUndo = document.getElementById('btn-undo');
         this.btnRedo = document.getElementById('btn-redo');
         this.btnGrid = document.getElementById('btn-toggle-grid');
@@ -49,10 +54,17 @@ class StageEditor {
         this.editorGraphics = new PIXI.Graphics();
         this.scene.worldContainer.addChild(this.editorGraphics);
 
+        // Enable sorting on all world containers
+        this.scene.worldContainer.sortableChildren = true;
+        if (this.scene.stageBack) this.scene.stageBack.sortableChildren = true;
+        if (this.scene.stageFront) this.scene.stageFront.sortableChildren = true;
+
         this.bindEvents();
     }
 
     bindEvents() {
+        this.btnToggleSidebar.onclick = () => this.toggleSidebar();
+        if (this.btnCollapseSidebar) this.btnCollapseSidebar.onclick = () => this.toggleSidebar();
         this.btnUndo.onclick = () => this.undo();
         this.btnRedo.onclick = () => this.redo();
         this.btnGrid.onclick = () => {
@@ -79,7 +91,6 @@ class StageEditor {
             const clickX = (e.clientX - rect.left) * (1280 / rect.width);
             const clickY = (e.clientY - rect.top) * (720 / rect.height);
 
-            // Convert to world coordinates
             const worldPos = this.scene.worldContainer.toLocal(new PIXI.Point(clickX, clickY));
             isDragging = true;
             dragStart = { x: worldPos.x, y: worldPos.y };
@@ -110,6 +121,12 @@ class StageEditor {
                 });
             }
         });
+    }
+
+    toggleSidebar(forceState = null) {
+        this.sidebarVisible = (forceState !== null) ? forceState : !this.sidebarVisible;
+        this.sidebar.classList.toggle('collapsed', !this.sidebarVisible);
+        this.btnToggleSidebar.classList.toggle('active', this.sidebarVisible);
     }
 
     toggle(forceState = null) {
@@ -182,10 +199,12 @@ class StageEditor {
         if (!this.selectedObject) {
             this.lblX.innerText = '0';
             this.lblY.innerText = '0';
+            if (this.lblZ) this.lblZ.innerText = '0';
             return;
         }
         this.lblX.innerText = Math.round(this.selectedObject.position.x);
         this.lblY.innerText = Math.round(this.selectedObject.position.y);
+        if (this.lblZ) this.lblZ.innerText = this.selectedObject.zIndex || 0;
     }
 
     nudge(dx, dy) {
@@ -197,9 +216,32 @@ class StageEditor {
         this.recordMove(this.selectedKey, prev, { x: prev.x + dx, y: prev.y + dy });
     }
 
+    changeLayer(delta) {
+        if (!this.active || !this.selectedObject) return;
+        const prevZ = this.selectedObject.zIndex || 0;
+        const newZ = prevZ + delta;
+        this.selectedObject.zIndex = newZ;
+
+        if (this.selectedObject.parent) {
+            this.selectedObject.parent.sortChildren();
+        }
+        this.scene.worldContainer.sortChildren();
+
+        this.updateReadout();
+        this.renderGuides();
+
+        this.history.push({
+            type: 'layer',
+            key: this.selectedKey,
+            from: prevZ,
+            to: newZ
+        });
+        this.redoStack = [];
+    }
+
     recordMove(key, from, to) {
         if (from.x === to.x && from.y === to.y) return;
-        this.history.push({ key, from, to });
+        this.history.push({ type: 'pos', key, from, to });
         this.redoStack = [];
     }
 
@@ -208,7 +250,13 @@ class StageEditor {
         const action = this.history.pop();
         const obj = this.getObjectByKey(action.key);
         if (obj) {
-            obj.position.set(action.from.x, action.from.y);
+            if (action.type === 'layer') {
+                obj.zIndex = action.from;
+                if (obj.parent) obj.parent.sortChildren();
+                this.scene.worldContainer.sortChildren();
+            } else {
+                obj.position.set(action.from.x, action.from.y);
+            }
             this.updateReadout();
             this.renderGuides();
             this.redoStack.push(action);
@@ -220,7 +268,13 @@ class StageEditor {
         const action = this.redoStack.pop();
         const obj = this.getObjectByKey(action.key);
         if (obj) {
-            obj.position.set(action.to.x, action.to.y);
+            if (action.type === 'layer') {
+                obj.zIndex = action.to;
+                if (obj.parent) obj.parent.sortChildren();
+                this.scene.worldContainer.sortChildren();
+            } else {
+                obj.position.set(action.to.x, action.to.y);
+            }
             this.updateReadout();
             this.renderGuides();
             this.history.push(action);
@@ -253,7 +307,7 @@ class StageEditor {
             }
         }
 
-        // 2. Floor Baseline (Green Guide Line)
+        // 2. Floor Baseline
         if (this.showBaseline) {
             this.editorGraphics.lineStyle(3, 0x2ed573, 0.9);
             this.editorGraphics.moveTo(-2000, this.baselineY);
@@ -279,15 +333,27 @@ class StageEditor {
         const out = {
             stage: this.scene.songItem.stage,
             characters: {
-                bf: this.scene.bf ? [Math.round(this.scene.bf.container.x), Math.round(this.scene.bf.container.y)] : [0, 0],
-                dad: this.scene.dad ? [Math.round(this.scene.dad.container.x), Math.round(this.scene.dad.container.y)] : [0, 0],
-                gf: this.scene.gf ? [Math.round(this.scene.gf.container.x), Math.round(this.scene.gf.container.y)] : [0, 0]
+                bf: {
+                    position: this.scene.bf ? [Math.round(this.scene.bf.container.x), Math.round(this.scene.bf.container.y)] : [0, 0],
+                    zIndex: this.scene.bf ? (this.scene.bf.container.zIndex || 300) : 300
+                },
+                dad: {
+                    position: this.scene.dad ? [Math.round(this.scene.dad.container.x), Math.round(this.scene.dad.container.y)] : [0, 0],
+                    zIndex: this.scene.dad ? (this.scene.dad.container.zIndex || 200) : 200
+                },
+                gf: {
+                    position: this.scene.gf ? [Math.round(this.scene.gf.container.x), Math.round(this.scene.gf.container.y)] : [0, 0],
+                    zIndex: this.scene.gf ? (this.scene.gf.container.zIndex || 100) : 100
+                }
             },
             props: {}
         };
 
         for (const [k, p] of Object.entries(this.scene.props)) {
-            out.props[k] = [Math.round(p.position.x), Math.round(p.position.y)];
+            out.props[k] = {
+                position: [Math.round(p.position.x), Math.round(p.position.y)],
+                zIndex: p.zIndex || 0
+            };
         }
 
         const jsonStr = JSON.stringify(out, null, 2);
@@ -335,6 +401,7 @@ class PlayStateScene {
         this.camZoom = this.stageDefaultZoom;
         this.baseZoom = this.camZoom;
 
+        // Stage camera initialization
         this.initStageCameras(songItem.id.toLowerCase());
         this.setupStage(stageData, stageProps, stageJson);
         this.setupCharacters(stageJson);
@@ -351,15 +418,15 @@ class PlayStateScene {
 
     initStageCameras(songId) {
         if (songId.includes('49') || songId.includes('suspect')) {
-            this.dadCam = [500, 480];
-            this.bfCam = [850, 480];
+            this.dadCam = [500, 450];
+            this.bfCam = [850, 450];
             this.camTargetX = 675;
-            this.camTargetY = 480;
+            this.camTargetY = 450;
         } else if (songId.includes('trot')) {
-            this.dadCam = [540, 390];
-            this.bfCam = [900, 390];
+            this.dadCam = [540, 360];
+            this.bfCam = [900, 360];
             this.camTargetX = 720;
-            this.camTargetY = 390;
+            this.camTargetY = 360;
         } else if (songId.includes('lied')) {
             this.dadCam = [640, 460];
             this.bfCam = [810, 460];
@@ -374,10 +441,10 @@ class PlayStateScene {
             this.baseZoom = 0.5;
             this.camZoom = 0.5;
         } else {
-            this.dadCam = [600, 480];
-            this.bfCam = [850, 480];
+            this.dadCam = [600, 450];
+            this.bfCam = [850, 450];
             this.camTargetX = 725;
-            this.camTargetY = 480;
+            this.camTargetY = 450;
         }
 
         this.camFocusX = this.camTargetX;
@@ -903,7 +970,7 @@ function onStepHit(step) {
             if (playState.props['graypet']) playState.props['graypet'].alpha = 0.001;
             if (playState.props['tawny']) playState.props['tawny'].alpha = 0.001;
             if (playState.props['deadtawny']) playState.props['deadtawny'].alpha = 1;
-            playState.dadCam = [270, 480];
+            playState.dadCam = [270, 450];
         }
     }
 
@@ -923,10 +990,10 @@ function onStepHit(step) {
         }
 
         if (step === 448 || step === 464 || step === 480) {
-            playState.camTargetX = 500; playState.camTargetY = 480;
+            playState.camTargetX = 500; playState.camTargetY = 450;
         }
         if (step === 460 || step === 476 || step === 492) {
-            playState.camTargetX = 850; playState.camTargetY = 480;
+            playState.camTargetX = 850; playState.camTargetY = 450;
         }
 
         if (step === 805) {
@@ -1096,6 +1163,27 @@ window.addEventListener('keydown', (e) => {
             playState.editor.toggle(false);
             return;
         }
+
+        // 'H' key toggles the Scene Inspector sidebar
+        if (e.key.toLowerCase() === 'h') {
+            playState.editor.toggleSidebar();
+            return;
+        }
+
+        // ` (Backtick) = Layer Up (+1)
+        if (e.code === 'Backquote' || e.key === '`') {
+            playState.editor.changeLayer(1);
+            e.preventDefault();
+            return;
+        }
+
+        // \ (Backslash) = Layer Down (-1)
+        if (e.code === 'Backslash' || e.key === '\\') {
+            playState.editor.changeLayer(-1);
+            e.preventDefault();
+            return;
+        }
+
         if (e.ctrlKey && e.key.toLowerCase() === 'z') {
             if (e.shiftKey) playState.editor.redo();
             else playState.editor.undo();
