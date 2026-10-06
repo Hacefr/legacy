@@ -111,7 +111,7 @@ class DynamicAtlasCharacter {
                 }
             };
 
-            if (this.isGF) {
+            if (this.isGF && !this.charName.includes('dead')) {
                 if (lower.includes('idle1') || lower.includes('idleleft')) assign('danceleft');
                 if (lower.includes('idle2') || lower.includes('idleright')) assign('danceright');
             } else {
@@ -144,7 +144,15 @@ class DynamicAtlasCharacter {
 
         this.isTimelineDriven = Object.keys(this.timelineAnims).length > 0;
 
-        this.currentAnim = this.isGF ? 'danceright' : 'idle';
+        // Fixed: Dead Noob starts in 'idle', never danceright!
+        if (this.charConfig.startingAnimation) {
+            this.currentAnim = this.charConfig.startingAnimation.toLowerCase();
+        } else if (this.isGF && !this.charName.includes('dead')) {
+            this.currentAnim = 'danceright';
+        } else {
+            this.currentAnim = 'idle';
+        }
+
         this.frame = 0;
         this.frameTimer = 0;
         this.holdTimer = 0;
@@ -313,10 +321,11 @@ class DynamicAtlasCharacter {
                 for (const el of activeFR.E) {
                     const baseMat = new PIXI.Matrix();
 
+                    // Floor alignments
                     if (this.charName === 'noob49') {
                         baseMat.translate(280, -700);
-                    } else if (this.charName.includes('deadnoob49')) {
-                        baseMat.translate(186, 477); // Applies official [-186, -477] drop to place Dead Noob on floor
+                    } else if (this.charName.includes('deadnoob')) {
+                        baseMat.translate(186, 477); // Drops Dead Noob onto the floor in Suspect!
                     } else if (this.charName.includes('detective')) {
                         baseMat.translate(0, -380);
                     } else if (this.charName.includes('horse')) {
@@ -382,7 +391,10 @@ class DynamicAtlasCharacter {
         if (this.holdTimer > 0) {
             this.holdTimer -= deltaSec;
             if (this.holdTimer <= 0 && !this.isLockedAnim) {
-                this.playAnim(this.isGF ? 'danceright' : 'idle');
+                // Dead Noob never dances to the beat; stays in idle!
+                if (!this.charName.includes('dead')) {
+                    this.playAnim(this.isGF ? 'danceright' : 'idle');
+                }
             }
         }
 
