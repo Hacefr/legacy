@@ -115,10 +115,10 @@ class DynamicAtlasCharacter {
                 if (lower.includes('idle2') || lower.includes('idleright')) assign('danceright');
             } else {
                 if (lower.includes('idle')) assign('idle');
-                if (lower.includes('left') && !lower.includes('miss')) { assign('left'); assign('singleft'); }
-                if (lower.includes('down') && !lower.includes('miss')) { assign('down'); assign('singdown'); }
-                if (lower.includes('up') && !lower.includes('miss')) { assign('up'); assign('singup'); }
-                if (lower.includes('right') && !lower.includes('miss')) { assign('right'); assign('singright'); }
+                if (lower.includes('left') && !lower.includes('miss')) { assign('singleft'); }
+                if (lower.includes('down') && !lower.includes('miss')) { assign('singdown'); }
+                if (lower.includes('up') && !lower.includes('miss')) { assign('singup'); }
+                if (lower.includes('right') && !lower.includes('miss')) { assign('singright'); }
 
                 if (lower.includes('miss')) {
                     if (lower.includes('left')) assign('singleftmiss');
@@ -129,6 +129,10 @@ class DynamicAtlasCharacter {
                 if (lower.includes('lock in')) assign('lock in');
                 if (lower.includes('cock')) assign('cock');
                 if (lower.includes('blast')) assign('blast');
+                if (lower.includes('shift')) assign('shift');
+                if (lower.includes('wow')) assign('wow');
+                if (lower.includes('bruh')) assign('bruh');
+                if (lower.includes('holy shit')) assign('holy shit');
             }
         }
 
@@ -141,7 +145,12 @@ class DynamicAtlasCharacter {
             }
         }
 
-        this.isTimelineDriven = this.charName.includes('detective') || this.charName.includes('horse') || (this.charName.includes('noob49') && !this.charName.includes('dead'));
+        // Timeline Mode enabled for all master-timeline characters (including Pink Threat & Grey Threat)
+        this.isTimelineDriven = this.charName.includes('detective') || 
+                                this.charName.includes('horse') || 
+                                this.charName.includes('pinkthreat') || 
+                                this.charName.includes('greythreat') || 
+                                (this.charName.includes('noob49') && !this.charName.includes('dead'));
 
         this.currentAnim = this.isGF ? 'danceright' : 'idle';
         this.frame = 0;
@@ -160,6 +169,13 @@ class DynamicAtlasCharacter {
     playAnim(animName, forced = false) {
         let clean = animName.toLowerCase().trim();
 
+        // Normalize raw directional calls to FNF standard sing names
+        if (clean === 'left') clean = 'singleft';
+        if (clean === 'down') clean = 'singdown';
+        if (clean === 'up') clean = 'singup';
+        if (clean === 'right') clean = 'singright';
+
+        // Pink Threat Alt Suffix Redirect (pinkthreat.hxc)
         if (this.charName.includes('pinkthreat') && this.idleSuffix === '-bruh') {
             if (clean.includes('left')) clean = 'lbruh';
             if (clean.includes('down')) clean = 'dbruh';
@@ -167,6 +183,7 @@ class DynamicAtlasCharacter {
             if (clean.includes('right')) clean = 'rbruh';
         }
 
+        // Timeline Mode (Pink Threat, Grey Threat, Detective, Horsemate, Noob49)
         if (this.isTimelineDriven) {
             let targetTimelineKey = Object.keys(this.timelineAnims).find(k => {
                 const kc = k.replace(/[^a-z0-9]/g, '');
@@ -190,6 +207,7 @@ class DynamicAtlasCharacter {
             }
         }
 
+        // Symbol Mode (Maroon Threat, BF, GF)
         let targetKey = Object.keys(this.animMap).find(k => {
             const kc = k.replace(/[^a-z0-9]/g, '');
             const cc = clean.replace(/[^a-z0-9]/g, '');
@@ -213,7 +231,6 @@ class DynamicAtlasCharacter {
         this.displayContainer.removeChildren();
         const self = this;
 
-        // Assembly: Parent Matrix -> Local Matrix
         function renderSymbolInstance(symName, frameNum, parentMat, target) {
             const sym = self.symbols[symName];
             if (!sym || !sym.TL || !sym.TL.L) return;
@@ -253,7 +270,7 @@ class DynamicAtlasCharacter {
             }
         }
 
-        // Timeline Mode: Tuned Character Baselines
+        // Timeline Mode
         if (this.mode === 'timeline' && this.activeAnimData) {
             const masterFrame = this.activeAnimData.startFrame + this.frame;
 
@@ -275,11 +292,15 @@ class DynamicAtlasCharacter {
                     const baseMat = new PIXI.Matrix();
 
                     if (this.charName === 'noob49') {
-                        baseMat.translate(280, -700);  // Shifted right next to Mini Grey
+                        baseMat.translate(280, -700);  // Shifted beside Mini Grey
                     } else if (this.charName.includes('detective')) {
-                        baseMat.translate(0, -380);   // Standing on tile floor
+                        baseMat.translate(0, -380);
                     } else if (this.charName.includes('horse')) {
-                        baseMat.translate(-150, -420); // Shifted left onto dirt ledge
+                        baseMat.translate(-150, -420);
+                    } else if (this.charName.includes('greythreat')) {
+                        baseMat.translate(0, -220);    // Grounded on beach sand
+                    } else if (this.charName.includes('pinkthreat')) {
+                        baseMat.translate(0, -260);    // Grounded on beach sand
                     }
 
                     baseMat.translate(this.globalOffset[0] || 0, this.globalOffset[1] || 0);
@@ -302,14 +323,18 @@ class DynamicAtlasCharacter {
             return;
         }
 
-        // Symbol Mode
+        // Symbol Mode (Maroon Threat, BF, GF) - Relative Delta Offset prevents jumping!
         if (this.mode === 'symbol' && this.activeSymbolName) {
             const rootMat = (this.rootMatrices[this.activeSymbolName] || this.idleRootMatrix).clone();
             
             if (this.charName.includes('pico')) {
                 rootMat.translate(116, -180);
             } else if (this.charName.includes('purple')) {
-                rootMat.translate(-200, -410); // Floor tile alignment
+                rootMat.translate(-200, -410);
+            } else if (this.charName.includes('maroonthreat')) {
+                rootMat.translate(0, -260); // Grounded on beach sand
+            } else if (this.charName.includes('maroonparasite')) {
+                rootMat.translate(0, -200);
             } else if (this.isPlayer) {
                 rootMat.translate(-405, -280);
             } else if (this.isGF) {
@@ -318,8 +343,13 @@ class DynamicAtlasCharacter {
                 rootMat.translate(-200, -320);
             }
 
-            const offsets = this.animOffsets[this.currentAnim] || [0, 0];
-            rootMat.translate(-offsets[0] + (this.globalOffset[0] || 0), -offsets[1] + (this.globalOffset[1] || 0));
+            // Relative offset delta: calculates difference from Idle so note animations NEVER teleport!
+            const idleOff = this.animOffsets['idle'] || this.animOffsets['danceleft'] || [0, 0];
+            const curOff = this.animOffsets[this.currentAnim] || idleOff;
+            const deltaX = -(curOff[0] - idleOff[0]);
+            const deltaY = -(curOff[1] - idleOff[1]);
+
+            rootMat.translate(deltaX + (this.globalOffset[0] || 0), deltaY + (this.globalOffset[1] || 0));
 
             renderSymbolInstance(this.activeSymbolName, this.frame, rootMat, this.displayContainer);
         }
