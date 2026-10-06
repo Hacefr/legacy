@@ -16,91 +16,6 @@ let playState = null;
 let activeCountdownTimer = null;
 
 // ==========================================================================
-// User Calibrated Stage Configurations (All 5 Songs Grounded)
-// ==========================================================================
-const STAGE_CALIBRATIONS = {
-    "security": {
-        characters: {
-            bf: { position: [1291, 895], zIndex: 300 },
-            dad: { position: [632, 1198], zIndex: 200 },
-            gf: { position: [1067, 746], zIndex: 100 }
-        },
-        props: {
-            bg: { position: [-550, -270], zIndex: 0 },
-            wall: { position: [-550, -270], zIndex: 0 },
-            cabinets: { position: [-552, -140], zIndex: 1 },
-            shit: { position: [350, 480], zIndex: 2 },
-            tawny: { position: [-130, 330], zIndex: 3 },
-            deadtawny: { position: [-130, 400], zIndex: 4 },
-            props: { position: [180, 20], zIndex: 5 },
-            table: { position: [35, 210], zIndex: 6 },
-            substract: { position: [-550, -270], zIndex: 8 },
-            graypet: { position: [-80, 750], zIndex: 250 },
-            minigrey: { position: [-80, 750], zIndex: 250 },
-            vignette: { position: [-550, -270], zIndex: 350 },
-            light: { position: [-250, -270], zIndex: 351 }
-        }
-    },
-    "security2": {
-        characters: {
-            bf: { position: [1046, 941], zIndex: 300 },
-            dad: { position: [275, 868], zIndex: 200 },
-            gf: { position: [604, 424], zIndex: 100 } // Dead Noob sitting directly on the floor
-        },
-        props: {
-            bg: { position: [-550, -270], zIndex: 0 },
-            wall: { position: [-550, -270], zIndex: 0 },
-            cabinets: { position: [-552, -140], zIndex: 1 },
-            deadtawny: { position: [-130, 400], zIndex: 4 },
-            props: { position: [180, 20], zIndex: 5 },
-            table: { position: [35, 210], zIndex: 6 },
-            substract: { position: [-550, -230], zIndex: 8 },
-            player: { position: [-900, 400], zIndex: 350 },
-            vignette: { position: [-550, -250], zIndex: 351 },
-            loblack: { position: [0, 0], zIndex: 352 },
-            discuss: { position: [407, 140], zIndex: 353 }
-        }
-    },
-    "horse": {
-        characters: {
-            bf: { position: [1268, 946], zIndex: 300 },
-            dad: { position: [72, 949], zIndex: 200 },
-            gf: { position: [960, 777], zIndex: 100 }
-        },
-        props: {
-            "1": { position: [-917, -203], zIndex: 2 },
-            "2": { position: [130, 415], zIndex: 3 },
-            "3": { position: [-600, 260], zIndex: 4 },
-            sky: { position: [-600, -235], zIndex: 0 },
-            light: { position: [-932, -940], zIndex: 1 },
-            one: { position: [-917, -203], zIndex: 2 },
-            two: { position: [130, 415], zIndex: 3 },
-            three: { position: [-600, 260], zIndex: 4 },
-            ground: { position: [-550, 737], zIndex: 5 },
-            horse1: { position: [-2000, 380], zIndex: 6 },
-            horses: { position: [-3480, 380], zIndex: 9 },
-            horse2: { position: [-3500, 380], zIndex: 7 },
-            horse3: { position: [-3400, 380], zIndex: 8 },
-            horse4: { position: [-3480, 380], zIndex: 9 },
-            caught: { position: [1400, 470], zIndex: 10 },
-            caughthorse: { position: [1400, 470], zIndex: 10 },
-            front: { position: [-866, 640], zIndex: 350 },
-            subtract: { position: [-595, -222], zIndex: 351 },
-            overlay: { position: [-590, -237], zIndex: 352 },
-            overlah: { position: [-590, -237], zIndex: 352 }
-        }
-    },
-    "medbay": {
-        characters: {
-            bf: { position: [1180, 875], zIndex: 300 },
-            dad: { position: [351.5, 928], zIndex: 200 },
-            gf: { position: [1320, 741], zIndex: 100 }
-        },
-        props: {}
-    }
-};
-
-// ==========================================================================
 // Stage 1 In-Game Visual Offset & Alignment Editor (Key 7)
 // ==========================================================================
 class StageEditor {
@@ -230,7 +145,10 @@ class StageEditor {
 
         if (this.scene.bf) items.push({ key: 'bf', name: 'Boyfriend (Player)', obj: this.scene.bf.container });
         if (this.scene.dad) items.push({ key: 'dad', name: 'Dad (Opponent)', obj: this.scene.dad.container });
-        if (this.scene.gf) items.push({ key: 'gf', name: 'Girlfriend', obj: this.scene.gf.container });
+        if (this.scene.gf) {
+            const isDead = this.scene.gf.charName.includes('dead');
+            items.push({ key: 'gf', name: isDead ? 'Girlfriend (Dead Noob)' : 'Girlfriend', obj: this.scene.gf.container });
+        }
 
         for (const [k, c] of Object.entries(this.scene.extraChars)) {
             if (c) items.push({ key: k, name: `Extra: ${k}`, obj: c.container });
@@ -483,43 +401,33 @@ class PlayStateScene {
         this.editor = new StageEditor(this);
     }
 
-    // Steady camera center anchor with gentle 40px turn-sway keeps BOTH characters on-screen!
+    // Static Camera: Zero sway so editing positions match gameplay 100%
     initStageCameras(songId) {
         if (songId.includes('49') || songId.includes('suspect')) {
-            this.roomCenter = [675, 450];
-            this.dadCam = [635, 450];
-            this.bfCam = [715, 450];
+            this.camTargetX = 675;
+            this.camTargetY = 480;
         } else if (songId.includes('trot')) {
-            this.roomCenter = [720, 360];
-            this.dadCam = [680, 360];
-            this.bfCam = [760, 360];
+            this.camTargetX = 720;
+            this.camTargetY = 390;
         } else if (songId.includes('lied')) {
-            this.roomCenter = [725, 460];
-            this.dadCam = [685, 460];
-            this.bfCam = [765, 460];
+            this.camTargetX = 725;
+            this.camTargetY = 460;
         } else if (songId.includes('threat')) {
-            this.roomCenter = [950, 600];
-            this.dadCam = [910, 600];
-            this.bfCam = [990, 600];
+            this.camTargetX = 950;
+            this.camTargetY = 600;
             this.stageDefaultZoom = 0.5;
             this.baseZoom = 0.5;
             this.camZoom = 0.5;
         } else {
-            this.roomCenter = [725, 450];
-            this.dadCam = [685, 450];
-            this.bfCam = [765, 450];
+            this.camTargetX = 725;
+            this.camTargetY = 480;
         }
 
-        this.camTargetX = this.roomCenter[0];
-        this.camTargetY = this.roomCenter[1];
         this.camFocusX = this.camTargetX;
         this.camFocusY = this.camTargetY;
     }
 
     setupStageAndCharacters(stageData, stageProps, stageJson) {
-        const stageName = this.songItem.stage || 'security';
-        const calib = STAGE_CALIBRATIONS[stageName] || null;
-
         // 1. Stage Props Setup
         if (stageJson && stageJson.props) {
             stageJson.props.forEach(p => {
@@ -528,10 +436,6 @@ class PlayStateScene {
 
                 let propPos = p.position;
                 let propZ = p.zIndex !== undefined ? p.zIndex : 0;
-                if (calib && calib.props && calib.props[cleanName]) {
-                    propPos = calib.props[cleanName].position;
-                    propZ = calib.props[cleanName].zIndex;
-                }
 
                 if (p.assetPath && p.assetPath.startsWith('#')) {
                     const g = new PIXI.Graphics();
@@ -698,12 +602,6 @@ class PlayStateScene {
             if (c.dad && Array.isArray(c.dad.position)) { dadPos = c.dad.position; dadZ = c.dad.zIndex || 200; }
             if (c.bf && Array.isArray(c.bf.position)) { bfPos = c.bf.position; bfZ = c.bf.zIndex || 300; }
             if (c.gf && Array.isArray(c.gf.position)) { gfPos = c.gf.position; gfZ = c.gf.zIndex || 100; }
-        }
-
-        if (calib && calib.characters) {
-            if (calib.characters.dad) { dadPos = calib.characters.dad.position; dadZ = calib.characters.dad.zIndex; }
-            if (calib.characters.bf) { bfPos = calib.characters.bf.position; bfZ = calib.characters.bf.zIndex; }
-            if (calib.characters.gf) { gfPos = calib.characters.gf.position; gfZ = calib.characters.gf.zIndex; }
         }
 
         if (this.gf) {
@@ -889,19 +787,6 @@ class PlayStateScene {
         const val = e.val || {};
 
         switch(name) {
-            case 'FocusCamera':
-                if (val.char === 1) {
-                    this.camTargetX = this.dadCam[0];
-                    this.camTargetY = this.dadCam[1];
-                } else if (val.char === 0) {
-                    this.camTargetX = this.bfCam[0];
-                    this.camTargetY = this.bfCam[1];
-                } else if (val.char === -1 && val.x !== undefined && val.y !== undefined) {
-                    this.camTargetX = val.x;
-                    this.camTargetY = (val.y < 600) ? val.y : val.y;
-                }
-                break;
-
             case 'ClassicCameraZoom':
             case 'ZoomCamera':
                 if (val.zoom !== undefined) {
@@ -947,6 +832,7 @@ class PlayStateScene {
             m.sprite.tilePosition.x += m.speed * deltaSec;
         });
 
+        // Scripted Tomatungus & White movements
         if (this.props['tomatungus'] && songPos >= 2000 && this.props['tomatungus'].x > -1000) {
             this.props['tomatungus'].x -= 30 * deltaSec;
         }
@@ -1137,7 +1023,6 @@ function onStepHit(step) {
             if (playState.props['graypet']) playState.props['graypet'].alpha = 0.001;
             if (playState.props['tawny']) playState.props['tawny'].alpha = 0.001;
             if (playState.props['deadtawny']) playState.props['deadtawny'].alpha = 1;
-            playState.dadCam = [625, 450];
         }
         if (step === 1004) {
             if (playState.dad) {
@@ -1163,6 +1048,7 @@ function onStepHit(step) {
             playState.hudContainer.visible = true;
         }
 
+        // Pico gun shootout sequence
         if (step === 805) {
             if (playState.bf) {
                 playState.bf.playAnim('lock in', true);
