@@ -16,6 +16,83 @@ let playState = null;
 let activeCountdownTimer = null;
 
 // ==========================================================================
+// User Calibrated Stage Configurations (Overrides ZIP Defaults)
+// ==========================================================================
+const STAGE_CALIBRATIONS = {
+    "security": {
+        characters: {
+            bf: { position: [1291, 895], zIndex: 300 },
+            dad: { position: [632, 1198], zIndex: 200 },
+            gf: { position: [1067, 746], zIndex: 100 }
+        },
+        props: {
+            bg: { position: [-550, -270], zIndex: 0 },
+            wall: { position: [-550, -270], zIndex: 0 },
+            cabinets: { position: [-552, -140], zIndex: 1 },
+            shit: { position: [350, 480], zIndex: 2 },
+            tawny: { position: [-130, 330], zIndex: 3 },
+            deadtawny: { position: [-130, 400], zIndex: 4 },
+            props: { position: [180, 20], zIndex: 5 },
+            table: { position: [35, 210], zIndex: 6 },
+            substract: { position: [-550, -270], zIndex: 8 },
+            graypet: { position: [-80, 750], zIndex: 250 },
+            minigrey: { position: [-80, 750], zIndex: 250 },
+            vignette: { position: [-550, -270], zIndex: 350 },
+            light: { position: [-250, -270], zIndex: 351 }
+        }
+    },
+    "security2": {
+        characters: {
+            bf: { position: [1046, 941], zIndex: 300 },
+            dad: { position: [275, 868], zIndex: 200 },
+            gf: { position: [604, 424], zIndex: 100 }
+        },
+        props: {
+            bg: { position: [-550, -270], zIndex: 0 },
+            wall: { position: [-550, -270], zIndex: 0 },
+            cabinets: { position: [-552, -140], zIndex: 1 },
+            deadtawny: { position: [-130, 400], zIndex: 4 },
+            props: { position: [180, 20], zIndex: 5 },
+            table: { position: [35, 210], zIndex: 6 },
+            substract: { position: [-550, -230], zIndex: 8 },
+            player: { position: [-900, 400], zIndex: 350 },
+            vignette: { position: [-550, -250], zIndex: 351 },
+            loblack: { position: [0, 0], zIndex: 352 },
+            discuss: { position: [407, 140], zIndex: 353 }
+        }
+    },
+    "horse": {
+        characters: {
+            bf: { position: [1268, 946], zIndex: 300 },
+            dad: { position: [72, 949], zIndex: 200 },
+            gf: { position: [960, 777], zIndex: 100 }
+        },
+        props: {
+            "1": { position: [-917, -203], zIndex: 2 },
+            "2": { position: [130, 415], zIndex: 3 },
+            "3": { position: [-600, 260], zIndex: 4 },
+            sky: { position: [-600, -235], zIndex: 0 },
+            light: { position: [-932, -940], zIndex: 1 },
+            one: { position: [-917, -203], zIndex: 2 },
+            two: { position: [130, 415], zIndex: 3 },
+            three: { position: [-600, 260], zIndex: 4 },
+            ground: { position: [-550, 737], zIndex: 5 },
+            horse1: { position: [-2000, 380], zIndex: 6 },
+            horses: { position: [-3480, 380], zIndex: 9 },
+            horse2: { position: [-3500, 380], zIndex: 7 },
+            horse3: { position: [-3400, 380], zIndex: 8 },
+            horse4: { position: [-3480, 380], zIndex: 9 },
+            caught: { position: [1400, 470], zIndex: 10 },
+            caughthorse: { position: [1400, 470], zIndex: 10 },
+            front: { position: [-866, 640], zIndex: 350 },
+            subtract: { position: [-595, -222], zIndex: 351 },
+            overlay: { position: [-590, -237], zIndex: 352 },
+            overlah: { position: [-590, -237], zIndex: 352 }
+        }
+    }
+};
+
+// ==========================================================================
 // Stage 1 In-Game Visual Offset & Alignment Editor (Key 7)
 // ==========================================================================
 class StageEditor {
@@ -434,11 +511,22 @@ class PlayStateScene {
     }
 
     setupStageAndCharacters(stageData, stageProps, stageJson) {
-        // 1. Base Stage Props from JSON
+        const stageName = this.songItem.stage || 'security';
+        const calib = STAGE_CALIBRATIONS[stageName] || null;
+
+        // 1. Base Props Setup (Uses calibrated positions if present!)
         if (stageJson && stageJson.props) {
             stageJson.props.forEach(p => {
                 const cleanName = p.assetPath.split('/').pop().toLowerCase();
                 const tex = stageData[cleanName];
+
+                // Check for user-calibrated prop overrides!
+                let propPos = p.position;
+                let propZ = p.zIndex !== undefined ? p.zIndex : 0;
+                if (calib && calib.props && calib.props[cleanName]) {
+                    propPos = calib.props[cleanName].position;
+                    propZ = calib.props[cleanName].zIndex;
+                }
 
                 if (p.assetPath && p.assetPath.startsWith('#')) {
                     const g = new PIXI.Graphics();
@@ -452,7 +540,7 @@ class PlayStateScene {
                     if (p.blend === 'subtract') g.blendMode = PIXI.BLEND_MODES.SUBTRACT;
                     if (p.blend === 'add') g.blendMode = PIXI.BLEND_MODES.ADD;
 
-                    g.zIndex = (p.zIndex !== undefined) ? p.zIndex : 0;
+                    g.zIndex = propZ;
                     const propName = p.name ? p.name.toLowerCase() : cleanName;
                     this.props[propName] = g;
                     this.worldContainer.addChild(g);
@@ -472,9 +560,9 @@ class PlayStateScene {
 
                 if (Array.isArray(animTextures) && animTextures.length > 0) {
                     const aSpr = new PIXI.AnimatedSprite(animTextures);
-                    aSpr.position.set(p.position[0], p.position[1]);
+                    aSpr.position.set(propPos[0], propPos[1]);
                     aSpr.scale.set(p.scale || 1);
-                    aSpr.zIndex = (p.zIndex !== undefined) ? p.zIndex : 0;
+                    aSpr.zIndex = propZ;
                     aSpr.alpha = (p.alpha !== undefined) ? p.alpha : 1;
                     
                     const isPlayerShootProp = (cleanName === 'player');
@@ -492,12 +580,12 @@ class PlayStateScene {
                     this.worldContainer.addChild(aSpr);
                 } else if (tex) {
                     const spr = new PIXI.Sprite(tex);
-                    spr.position.set(p.position[0], p.position[1]);
+                    spr.position.set(propPos[0], propPos[1]);
                     spr.scale.set(p.scale || 1);
                     spr.alpha = (p.alpha !== undefined) ? p.alpha : 1;
                     if (p.blend === 'subtract') spr.blendMode = PIXI.BLEND_MODES.SUBTRACT;
                     if (p.blend === 'add') spr.blendMode = PIXI.BLEND_MODES.ADD;
-                    spr.zIndex = (p.zIndex !== undefined) ? p.zIndex : 0;
+                    spr.zIndex = propZ;
 
                     const propName = p.name ? p.name.toLowerCase() : cleanName;
                     this.props[propName] = spr;
@@ -506,7 +594,6 @@ class PlayStateScene {
                 }
             });
 
-            // Mist Layers for Security 2
             if (stageData['mistback'] && stageData['mistmid']) {
                 const mb = new PIXI.TilingSprite(stageData['mistback'], 4000, 720);
                 mb.position.set(-1000, -270);
@@ -526,7 +613,7 @@ class PlayStateScene {
             }
         }
 
-        // 2. Build Beach Stage Boppers & Scripted Crewmates (from beach.hxc)
+        // 2. Beach Stage Bopper Selection (from beach.hxc: picks 1 of 4 randomized combinations so they don't pile up!)
         const currentSong = this.songItem.id.toLowerCase();
         if (currentSong.includes('threat')) {
             const addBopperSprite = (key, textures, x, y, z, loop = false) => {
@@ -543,39 +630,49 @@ class PlayStateScene {
                 return spr;
             };
 
-            // Tomatungus & White (ejected)
-            if (stageData['tomatungusswim']) {
-                const tom = new PIXI.Sprite(stageData['tomatungusswim']);
-                tom.position.set(2300, 450);
-                tom.zIndex = 4;
-                this.props['tomatungus'] = tom;
-                this.worldContainer.addChild(tom);
-            }
-            if (stageData['whiteejected']) {
-                const white = new PIXI.Sprite(stageData['whiteejected']);
-                white.position.set(-700, 420);
-                white.zIndex = 4;
-                this.props['white'] = white;
-                this.worldContainer.addChild(white);
-            }
+            const beachChoice = Math.floor(Math.random() * 4); // Exact 4-way random split from beach.hxc!
+            const bp1 = stageProps['boppers1'] || {};
+            const bp2 = stageProps['boppers2'] || {};
 
-            // Boppers from boppers2.xml
-            if (stageProps['boppers2']) {
-                const bp2 = stageProps['boppers2'];
-                addBopperSprite('noisemaker', bp2['noisemakerbop1'] || Object.values(bp2)[0], 1350, 440, 5);
-                addBopperSprite('alien', bp2['alienbop1'] || Object.values(bp2)[0], 2030, 470, 7);
-                addBopperSprite('egor', bp2['egorbop'] || Object.values(bp2)[0], -400, 500, 6);
-            }
-
-            // Boppers from boppers1.xml
-            if (stageProps['boppers1']) {
-                const bp1 = stageProps['boppers1'];
+            if (beachChoice === 0) {
+                if (stageData['tomatungusswim']) {
+                    const tom = new PIXI.Sprite(stageData['tomatungusswim']);
+                    tom.position.set(2300, 450); tom.zIndex = 4;
+                    this.props['tomatungus'] = tom; this.worldContainer.addChild(tom);
+                }
                 addBopperSprite('longus', bp1['longusbop1'] || Object.values(bp1)[0], -300, 300, 5);
                 addBopperSprite('buckenberry', bp1['buckenbop1'] || Object.values(bp1)[0], 1970, 430, 6);
                 addBopperSprite('rhm', bp1['rhmbop'] || Object.values(bp1)[0], 2300, 450, 7);
+            } else if (beachChoice === 1) {
+                if (stageData['whiteejected']) {
+                    const white = new PIXI.Sprite(stageData['whiteejected']);
+                    white.position.set(-700, 420); white.zIndex = 4;
+                    this.props['white'] = white; this.worldContainer.addChild(white);
+                }
+                addBopperSprite('noisemaker', bp2['noisemakerbop1'] || Object.values(bp2)[0], 1350, 440, 5);
+                addBopperSprite('egor', bp2['egorbop'] || Object.values(bp2)[0], -400, 500, 6);
+                addBopperSprite('alien', bp2['alienbop1'] || Object.values(bp2)[0], 2030, 470, 7);
+            } else if (beachChoice === 2) {
+                if (stageData['whiteejected']) {
+                    const white = new PIXI.Sprite(stageData['whiteejected']);
+                    white.position.set(-700, 420); white.zIndex = 4;
+                    this.props['white'] = white; this.worldContainer.addChild(white);
+                }
+                addBopperSprite('noisemaker', bp2['noisemakerbop1'] || Object.values(bp2)[0], 1350, 440, 5);
+                addBopperSprite('longus', bp1['longusbop1'] || Object.values(bp1)[0], -300, 300, 6);
+                addBopperSprite('buckenberry', bp1['buckenbop1'] || Object.values(bp1)[0], 1970, 430, 7);
+            } else {
+                if (stageData['tomatungusswim']) {
+                    const tom = new PIXI.Sprite(stageData['tomatungusswim']);
+                    tom.position.set(2300, 450); tom.zIndex = 4;
+                    this.props['tomatungus'] = tom; this.worldContainer.addChild(tom);
+                }
+                addBopperSprite('egor', bp2['egorbop'] || Object.values(bp2)[0], -400, 500, 5);
+                addBopperSprite('alien', bp2['alienbop1'] || Object.values(bp2)[0], 2030, 470, 6);
+                addBopperSprite('rhm', bp1['rhmbop'] || Object.values(bp1)[0], 2300, 450, 7);
             }
 
-            // Chef from chef.xml (hidden until step 1500)
+            // Chef crewmate (hidden until step 1500)
             if (stageProps['chef']) {
                 const chf = stageProps['chef'];
                 const chefSpr = addBopperSprite('chef', chf['chefbop'] || Object.values(chf)[0], 1970, 460, 8);
@@ -583,7 +680,7 @@ class PlayStateScene {
             }
         }
 
-        // 3. Characters Placement
+        // 3. Characters Placement (Prioritizes user's calibrated coordinates!)
         const c = (stageJson && stageJson.characters) ? stageJson.characters : null;
 
         let dadPos = [100, 100];
@@ -597,6 +694,13 @@ class PlayStateScene {
             if (c.dad && Array.isArray(c.dad.position)) { dadPos = c.dad.position; dadZ = c.dad.zIndex || 200; }
             if (c.bf && Array.isArray(c.bf.position)) { bfPos = c.bf.position; bfZ = c.bf.zIndex || 300; }
             if (c.gf && Array.isArray(c.gf.position)) { gfPos = c.gf.position; gfZ = c.gf.zIndex || 100; }
+        }
+
+        // Apply calibrated character overrides!
+        if (calib && calib.characters) {
+            if (calib.characters.dad) { dadPos = calib.characters.dad.position; dadZ = calib.characters.dad.zIndex; }
+            if (calib.characters.bf) { bfPos = calib.characters.bf.position; bfZ = calib.characters.bf.zIndex; }
+            if (calib.characters.gf) { gfPos = calib.characters.gf.position; gfZ = calib.characters.gf.zIndex; }
         }
 
         if (this.gf) {
@@ -834,7 +938,7 @@ class PlayStateScene {
             m.sprite.tilePosition.x += m.speed * deltaSec;
         });
 
-        // Scripted Triple Threat Tomatungus & White movement
+        // Scripted Tomatungus & White movements
         if (this.props['tomatungus'] && songPos >= 2000 && this.props['tomatungus'].x > -1000) {
             this.props['tomatungus'].x -= 30 * deltaSec;
         }
@@ -881,7 +985,6 @@ class PlayStateScene {
                     this.updateHealthBar();
                 }
 
-                // Call normalized 'singleft', 'singdown', etc. to guarantee real JSON offsets are used!
                 const anims = ['singleft', 'singdown', 'singup', 'singright'];
                 const animToPlay = anims[n.dir];
 
@@ -1332,6 +1435,7 @@ async function launchSong(item) {
     const songId = item.id.toLowerCase();
     const cleanId = songId.replace(/[^a-z0-9]/g, '');
 
+    // Intro Cutscene Videos
     if (songId.includes('49')) await playVideoCutscene('49');
     else if (songId.includes('suspect')) await playVideoCutscene('suspect');
     else if (songId.includes('lied')) await playVideoCutscene('dontlied');
