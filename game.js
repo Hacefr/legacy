@@ -45,7 +45,7 @@ const STAGE_CALIBRATIONS = {
         characters: {
             bf: { position: [1172, 757], zIndex: 300, flipX: false },
             dad: { position: [275, 487], zIndex: 200, flipX: false },
-            gf: { position: [590, 481], zIndex: 100, flipX: false } // Dead Noob sitting directly on floor!
+            gf: { position: [590, 481], zIndex: 100, flipX: false }
         },
         props: {
             bg: { position: [-550, -270], zIndex: 0 },
@@ -115,6 +115,92 @@ const STAGE_CALIBRATIONS = {
         }
     }
 };
+
+// ==========================================================================
+// Helper: Load Official Health Icon (2-Frame PNG or Sparrow XML)
+// ==========================================================================
+async function loadHealthIcon(iconId) {
+    if (!iconId) return null;
+    const cleanId = String(iconId).toLowerCase().replace(/[^a-z0-9]/g, '');
+    let pngEntry = null;
+    let xmlEntry = null;
+
+    for (const [p, e] of Object.entries(VirtualFS.assets)) {
+        const pClean = p.toLowerCase();
+        if (pClean.includes(`/icons/icon-${cleanId}.png`) || pClean.endsWith(`/icon-${cleanId}.png`)) {
+            pngEntry = e;
+        }
+        if (pClean.includes(`/icons/icon-${cleanId}.xml`) || pClean.endsWith(`/icon-${cleanId}.xml`)) {
+            xmlEntry = e;
+        }
+    }
+
+    if (!pngEntry) {
+        for (const [p, e] of Object.entries(VirtualFS.assets)) {
+            const pClean = p.toLowerCase();
+            if (pClean.includes(`/icons/`) && pClean.includes(`${cleanId}.png`)) {
+                pngEntry = e;
+                break;
+            }
+        }
+    }
+
+    if (!pngEntry) return null;
+
+    try {
+        const blob = await pngEntry.async('blob');
+        const url = createTrackedBlobUrl(blob);
+        const tex = await PIXI.Texture.fromURL(url);
+        const bt = tex.baseTexture;
+
+        // 1. If an XML atlas exists (e.g. icon-horsemate.xml, icon-tt1.xml, etc.)
+        if (xmlEntry) {
+            const xmlText = sanitizeJsonText(await xmlEntry.async('string'));
+            const xmlDoc = new DOMParser().parseFromString(xmlText, 'text/xml');
+            const subTextures = xmlDoc.getElementsByTagName("SubTexture");
+            let neutralTex = null;
+            let loseTex = null;
+
+            for (let i = 0; i < subTextures.length; i++) {
+                const sub = subTextures[i];
+                const name = (sub.getAttribute("name") || '').toLowerCase();
+                const x = parseInt(sub.getAttribute("x") || 0, 10);
+                const y = parseInt(sub.getAttribute("y") || 0, 10);
+                const width = parseInt(sub.getAttribute("width") || 0, 10);
+                const height = parseInt(sub.getAttribute("height") || 0, 10);
+                const frameX = parseInt(sub.getAttribute("frameX") || 0, 10);
+                const frameY = parseInt(sub.getAttribute("frameY") || 0, 10);
+                const frameWidth = parseInt(sub.getAttribute("frameWidth") || width, 10);
+                const frameHeight = parseInt(sub.getAttribute("frameHeight") || height, 10);
+
+                const rect = new PIXI.Rectangle(x, y, width, height);
+                const orig = new PIXI.Rectangle(0, 0, frameWidth, frameHeight);
+                const trim = new PIXI.Rectangle(-frameX, -frameY, width, height);
+                const subTex = new PIXI.Texture(bt, rect, orig, trim);
+
+                if (name.includes('losing') || name.includes('lose')) {
+                    loseTex = subTex;
+                } else {
+                    neutralTex = subTex;
+                }
+            }
+
+            if (neutralTex) {
+                return { neutralTex, loseTex: loseTex || neutralTex };
+            }
+        }
+
+        // 2. Standard 2-Frame Grid Slice
+        const frameW = Math.floor(bt.width / 2);
+        const frameH = bt.height;
+        const neutralTex = new PIXI.Texture(bt, new PIXI.Rectangle(0, 0, frameW, frameH));
+        const loseTex = new PIXI.Texture(bt, new PIXI.Rectangle(frameW, 0, frameW, frameH));
+        return { neutralTex, loseTex };
+    } catch(err) {
+        console.warn(`Failed loading icon: ${iconId}`, err);
+        return null;
+    }
+}
 
 // ==========================================================================
 // Stage 1 In-Game Visual Offset & Alignment Editor (Key 7)
@@ -556,63 +642,40 @@ class PlayStateScene {
         this.camFocusY = this.camTargetY;
     }
 
-    // Official FNF 2-Frame Icon Loader (Neutral & Losing)
+    // Official FNF 2-Frame & Sparrow XML Icon Loader
     async loadIcons() {
-        const loadIconTextures = async (iconId) => {
-            let iconEntry = null;
-            const target = `icon-${iconId.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
-
-            for (const [p, e] of Object.entries(VirtualFS.assets)) {
-                const pClean = p.toLowerCase().replace(/[^a-z0-9\/\.]/g, '');
-                if (pClean.includes(`/icons/${target}.png`) || pClean.endsWith(`/${target}.png`)) {
-                    iconEntry = e;
-                    break;
-                }
-            }
-
-            if (!iconEntry) return null;
-
-            try {
-                const blob = await iconEntry.async('blob');
-                const url = createTrackedBlobUrl(blob);
-                const tex = await PIXI.Texture.fromURL(url);
-                const bt = tex.baseTexture;
-
-                // Slice 2-frame icon grid [Neutral, Losing]
-                const frameW = Math.floor(bt.width / 2);
-                const frameH = bt.height;
-
-                const neutralTex = new PIXI.Texture(bt, new PIXI.Rectangle(0, 0, frameW, frameH));
-                const loseTex = new PIXI.Texture(bt, new PIXI.Rectangle(frameW, 0, frameW, frameH));
-                return { neutralTex, loseTex, frameW, frameH };
-            } catch(e) {
-                return null;
-            }
-        };
-
         const dadIconId = this.dad.charConfig.healthIcon ? (this.dad.charConfig.healthIcon.id || this.dad.charName) : this.dad.charName;
         const bfIconId = this.bf.charConfig.healthIcon ? (this.bf.charConfig.healthIcon.id || this.bf.charName) : this.bf.charName;
 
-        const dadIconData = await loadIconTextures(dadIconId);
-        const bfIconData = await loadIconTextures(bfIconId);
+        this.dadIconData = await loadHealthIcon(dadIconId);
+        this.bfIconData = await loadHealthIcon(bfIconId);
 
-        if (dadIconData && this.dadIcon) {
-            this.dadIconData = dadIconData;
-            this.dadIconSprite.texture = dadIconData.neutralTex;
-            this.dadIconSprite.scale.set(0.8);
+        if (this.dadIconData && this.dadIconSprite) {
+            this.dadIconSprite.texture = this.dadIconData.neutralTex;
+            this.dadIconSprite.scale.set(0.85);
             this.dadIconSprite.anchor.set(0.5);
-            this.dadIcon.removeChildren();
-            this.dadIcon.addChild(this.dadIconSprite);
         }
 
-        if (bfIconData && this.bfIcon) {
-            this.bfIconData = bfIconData;
-            this.bfIconSprite.texture = bfIconData.neutralTex;
-            this.bfIconSprite.scale.set(-0.8, 0.8); // Flipped facing left
+        if (this.bfIconData && this.bfIconSprite) {
+            this.bfIconSprite.texture = this.bfIconData.neutralTex;
+            this.bfIconSprite.scale.set(0.85);
             this.bfIconSprite.anchor.set(0.5);
-            this.bfIcon.removeChildren();
-            this.bfIcon.addChild(this.bfIconSprite);
         }
+        this.updateHealthBar();
+    }
+
+    async updateCharacterIcon(role, newIconId) {
+        const iconData = await loadHealthIcon(newIconId);
+        if (!iconData) return;
+
+        if (role === 'dad') {
+            this.dadIconData = iconData;
+            if (this.dadIconSprite) this.dadIconSprite.texture = iconData.neutralTex;
+        } else if (role === 'bf') {
+            this.bfIconData = iconData;
+            if (this.bfIconSprite) this.bfIconSprite.texture = iconData.neutralTex;
+        }
+        this.updateHealthBar();
     }
 
     setupStageAndCharacters(stageData, stageProps, stageJson) {
@@ -800,18 +863,9 @@ class PlayStateScene {
         }
 
         if (calib && calib.characters) {
-            if (calib.characters.dad) { 
-                dadPos = calib.characters.dad.position; 
-                dadZ = calib.characters.dad.zIndex; 
-            }
-            if (calib.characters.bf) { 
-                bfPos = calib.characters.bf.position; 
-                bfZ = calib.characters.bf.zIndex; 
-            }
-            if (calib.characters.gf) { 
-                gfPos = calib.characters.gf.position; 
-                gfZ = calib.characters.gf.zIndex; 
-            }
+            if (calib.characters.dad) { dadPos = calib.characters.dad.position; dadZ = calib.characters.dad.zIndex; }
+            if (calib.characters.bf) { bfPos = calib.characters.bf.position; bfZ = calib.characters.bf.zIndex; }
+            if (calib.characters.gf) { gfPos = calib.characters.gf.position; gfZ = calib.characters.gf.zIndex; }
         }
 
         if (this.gf) {
@@ -1020,7 +1074,7 @@ class PlayStateScene {
         this.dadIcon.position.set(splitX - 35, 0);
         this.bfIcon.position.set(splitX + 35, 0);
 
-        // Icon frame switching: Neutral vs Losing!
+        // 20% Health Danger Threshold: Switches between Neutral & Losing icons!
         if (this.bfIconData && this.bfIconSprite) {
             this.bfIconSprite.texture = (this.health < 0.4) ? this.bfIconData.loseTex : this.bfIconData.neutralTex;
         }
@@ -1034,6 +1088,14 @@ class PlayStateScene {
         const val = e.val || {};
 
         switch(name) {
+            case 'SetHealthIcon':
+                if (val.char === 1 || val.char === 'dad') {
+                    this.updateCharacterIcon('dad', val.id);
+                } else if (val.char === 0 || val.char === 'bf') {
+                    this.updateCharacterIcon('bf', val.id);
+                }
+                break;
+
             case 'ClassicCameraZoom':
             case 'ZoomCamera':
                 if (val.zoom !== undefined) {
@@ -1075,7 +1137,7 @@ class PlayStateScene {
         if (this.extraChars.grey && this.extraChars.grey.container.visible) this.extraChars.grey.update(deltaSec);
         if (this.extraChars.maroonParasite && this.extraChars.maroonParasite.container.visible) this.extraChars.maroonParasite.update(deltaSec);
 
-        // Health Icon Beat Bop smooth lerp back to 1.0
+        // Health Icon Beat Bop smooth return to 1.0
         if (this.dadIcon && this.dadIcon.scale.x > 1.0) {
             this.dadIcon.scale.x += (1.0 - this.dadIcon.scale.x) * 0.15;
             this.dadIcon.scale.y += (1.0 - this.dadIcon.scale.y) * 0.15;
@@ -1089,7 +1151,6 @@ class PlayStateScene {
             m.sprite.tilePosition.x += m.speed * deltaSec;
         });
 
-        // Scripted Tomatungus & White movements
         if (this.props['tomatungus'] && songPos >= 2000 && this.props['tomatungus'].x > -1000) {
             this.props['tomatungus'].x -= 30 * deltaSec;
         }
@@ -1269,7 +1330,7 @@ class PlayStateScene {
     }
 }
 
-// Stage Step Directors
+// Stage Step Directors (Mid-song cutscene hooks untouched)
 function onStepHit(step) {
     if (!playState) return;
     const currentSong = playState.songItem.id.toLowerCase();
@@ -1305,7 +1366,6 @@ function onStepHit(step) {
             playState.hudContainer.visible = true;
         }
 
-        // Pico gun shootout sequence
         if (step === 805) {
             if (playState.bf) {
                 playState.bf.playAnim('lock in', true);
@@ -1527,7 +1587,6 @@ window.addEventListener('keydown', (e) => {
             return;
         }
 
-        // F key: Flip selected sprite
         if (e.key.toLowerCase() === 'f') {
             playState.editor.flipSelected();
             return;
