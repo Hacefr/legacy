@@ -153,7 +153,6 @@ async function loadHealthIcon(iconId) {
         const tex = await PIXI.Texture.fromURL(url);
         const bt = tex.baseTexture;
 
-        // 1. If an XML atlas exists (e.g. icon-horsemate.xml, icon-tt1.xml, etc.)
         if (xmlEntry) {
             const xmlText = sanitizeJsonText(await xmlEntry.async('string'));
             const xmlDoc = new DOMParser().parseFromString(xmlText, 'text/xml');
@@ -190,7 +189,7 @@ async function loadHealthIcon(iconId) {
             }
         }
 
-        // 2. Standard 2-Frame Grid Slice
+        // Standard 2-Frame Grid Slice
         const frameW = Math.floor(bt.width / 2);
         const frameH = bt.height;
         const neutralTex = new PIXI.Texture(bt, new PIXI.Rectangle(0, 0, frameW, frameH));
@@ -611,9 +610,7 @@ class PlayStateScene {
         app.stage.addChild(this.worldContainer);
         app.stage.addChild(this.hudContainer);
 
-        // Preload Official Health Icons
         this.loadIcons();
-
         this.editor = new StageEditor(this);
     }
 
@@ -642,7 +639,6 @@ class PlayStateScene {
         this.camFocusY = this.camTargetY;
     }
 
-    // Official FNF 2-Frame & Sparrow XML Icon Loader
     async loadIcons() {
         const dadIconId = this.dad.charConfig.healthIcon ? (this.dad.charConfig.healthIcon.id || this.dad.charName) : this.dad.charName;
         const bfIconId = this.bf.charConfig.healthIcon ? (this.bf.charConfig.healthIcon.id || this.bf.charName) : this.bf.charName;
@@ -658,7 +654,7 @@ class PlayStateScene {
 
         if (this.bfIconData && this.bfIconSprite) {
             this.bfIconSprite.texture = this.bfIconData.neutralTex;
-            this.bfIconSprite.scale.set(0.85);
+            this.bfIconSprite.scale.set(-0.85, 0.85); // Inverted scale faces left toward the opponent!
             this.bfIconSprite.anchor.set(0.5);
         }
         this.updateHealthBar();
@@ -1069,12 +1065,12 @@ class PlayStateScene {
         this.barFill.drawRect(bw / 2 - bfWidth, -bh / 2, bfWidth, bh);
         this.barFill.endFill();
 
-        // Icon Positioning along the health split line
+        // Increased Icon Spacing: 65px on each side avoids overlapping completely!
         const splitX = (bw / 2 - bfWidth);
-        this.dadIcon.position.set(splitX - 35, 0);
-        this.bfIcon.position.set(splitX + 35, 0);
+        this.dadIcon.position.set(splitX - 65, 0);
+        this.bfIcon.position.set(splitX + 65, 0);
 
-        // 20% Health Danger Threshold: Switches between Neutral & Losing icons!
+        // 20% Danger Threshold Frame Swapping
         if (this.bfIconData && this.bfIconSprite) {
             this.bfIconSprite.texture = (this.health < 0.4) ? this.bfIconData.loseTex : this.bfIconData.neutralTex;
         }
@@ -1137,7 +1133,7 @@ class PlayStateScene {
         if (this.extraChars.grey && this.extraChars.grey.container.visible) this.extraChars.grey.update(deltaSec);
         if (this.extraChars.maroonParasite && this.extraChars.maroonParasite.container.visible) this.extraChars.maroonParasite.update(deltaSec);
 
-        // Health Icon Beat Bop smooth return to 1.0
+        // Icon Bop smooth recovery
         if (this.dadIcon && this.dadIcon.scale.x > 1.0) {
             this.dadIcon.scale.x += (1.0 - this.dadIcon.scale.x) * 0.15;
             this.dadIcon.scale.y += (1.0 - this.dadIcon.scale.y) * 0.15;
@@ -1330,7 +1326,7 @@ class PlayStateScene {
     }
 }
 
-// Stage Step Directors (Mid-song cutscene hooks untouched)
+// Stage Step Directors
 function onStepHit(step) {
     if (!playState) return;
     const currentSong = playState.songItem.id.toLowerCase();
@@ -1366,6 +1362,7 @@ function onStepHit(step) {
             playState.hudContainer.visible = true;
         }
 
+        // Pico gun shootout sequence
         if (step === 805) {
             if (playState.bf) {
                 playState.bf.playAnim('lock in', true);
@@ -1658,6 +1655,27 @@ async function loadAnimatedProp(stageFolder, propName) {
     return null;
 }
 
+// Helpers for the FNF Loading Screen
+function showLoadingScreen(songName, opponentName) {
+    const screen = document.getElementById('loading-screen');
+    const title = document.getElementById('loading-song-title');
+    const sub = document.getElementById('loading-sub-text');
+    if (title) title.innerText = String(songName).toUpperCase();
+    if (sub) sub.innerText = `VS ${String(opponentName).toUpperCase()}`;
+    if (screen) {
+        screen.style.opacity = '1';
+        screen.classList.remove('hidden');
+    }
+}
+
+function hideLoadingScreen() {
+    const screen = document.getElementById('loading-screen');
+    if (screen) {
+        screen.style.opacity = '0';
+        setTimeout(() => screen.classList.add('hidden'), 350);
+    }
+}
+
 async function launchSong(item) {
     if (activeCountdownTimer) {
         clearTimeout(activeCountdownTimer);
@@ -1672,7 +1690,7 @@ async function launchSong(item) {
     Conductor.setBPM(item.bpm);
 
     freeplayScreen.classList.add('hidden');
-    gameContainer.classList.remove('hidden');
+    showLoadingScreen(item.name, item.player2);
 
     if (playState) {
         playState.destroy();
@@ -1681,11 +1699,6 @@ async function launchSong(item) {
 
     const songId = item.id.toLowerCase();
     const cleanId = songId.replace(/[^a-z0-9]/g, '');
-
-    // Intro Cutscene Videos
-    if (songId.includes('49')) await playVideoCutscene('49');
-    else if (songId.includes('suspect')) await playVideoCutscene('suspect');
-    else if (songId.includes('lied')) await playVideoCutscene('dontlied');
 
     try {
         if (!VirtualFS.audioBufferCache[cleanId]) {
@@ -1759,6 +1772,15 @@ async function launchSong(item) {
 
         playState = new PlayStateScene(item, dadChar, bfChar, gfChar, stageData, stageProps, stageJson, extraChars);
 
+        // Hide Loading Screen and transition into Video / Gameplay
+        hideLoadingScreen();
+        gameContainer.classList.remove('hidden');
+
+        // Intro Videos
+        if (songId.includes('49')) await playVideoCutscene('49');
+        else if (songId.includes('suspect')) await playVideoCutscene('suspect');
+        else if (songId.includes('lied')) await playVideoCutscene('dontlied');
+
         activeCountdownTimer = setTimeout(() => {
             if (playState) {
                 playState.showRating("GO!", 0x2ed573);
@@ -1771,6 +1793,7 @@ async function launchSong(item) {
 
     } catch(err) {
         console.error("Launch error:", err);
+        hideLoadingScreen();
         alert("Failed to start song. Check console (F12).");
         returnToFreeplay();
     }
@@ -1791,6 +1814,7 @@ function returnToFreeplay() {
     videoOverlay.pause();
     videoOverlay.style.display = 'none';
 
+    hideLoadingScreen();
     gameContainer.classList.add('hidden');
     freeplayScreen.classList.remove('hidden');
 }
